@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Screen test</title>
+<meta name="description" content="Full-screen test patterns for a new monitor, phone or TV: dead pixels, uneven light, banding, ghosting and refresh rate. Free, no ads, no tracking, nothing uploaded.">
+<link rel="stylesheet" href="../shared/base.css">
+<script src="../shared/shell.js"></script>
+<script type="application/json" id="tool">
+{
+  "title": "Screen test",
+  "blurb": "Full-screen test patterns for a new monitor, phone or TV: dead pixels, uneven light, banding, ghosting and how many pictures a second you are really getting.",
+  "tags": ["display", "hardware"],
+  "keywords": ["screen", "monitor", "display", "test", "pattern", "dead pixel", "stuck pixel", "backlight bleed", "ips glow", "uniformity", "mura", "banding", "gamma", "black crush", "clipping", "ghosting", "overdrive", "response time", "refresh rate", "hz", "inversion", "checkerboard", "tv", "panel", "lcd", "oled", "burn-in", "calibration"]
+}
+</script>
+<style>
+  /* ---------- the page you start from ---------- */
+
+  .strip { display: flex; height: 30px; margin: 22px 0 0;
+           border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .strip i { flex: 1; }
+
+  .go { margin: 22px 0 0; font-size: 16px; font-weight: 650; padding: 12px 20px;
+        background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
+  .go:hover { background: var(--acc); border-color: var(--acc); color: var(--on-acc); filter: brightness(1.08); }
+  .keys { color: var(--dim); font-size: 14px; margin: 14px 0 0; line-height: 2.4; }
+
+  .group { margin-top: 34px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .group h2 { margin-bottom: 4px; }
+  .group > .note { margin: 0; }
+
+  .pats { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px;
+          grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  .pats button { width: 100%; height: 100%; text-align: left; padding: 12px 14px; border-radius: 10px; }
+  .pats .t { display: block; font-weight: 650; letter-spacing: -0.01em; margin-bottom: 3px; }
+  /* Held at --dim so the hover colour lands on the name alone. */
+  .pats .d { display: block; color: var(--dim); font-size: 14px; line-height: 1.45; }
+
+  .warn { border-left: 2px solid var(--acc); padding-left: 12px; margin: 14px 0 0; }
+
+  details { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 34px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 14px; }
+  summary:hover { color: var(--acc); }
+  .terms { margin: 14px 0 0; }
+  .terms dt { font-weight: 650; margin-top: 12px; }
+  .terms dt:first-child { margin-top: 0; }
+  .terms dd { margin: 2px 0 0; color: var(--dim); font-size: 14.5px; }
+
+  /* ---------- the patterns themselves ----------
+     Everything below covers the whole screen, so it ignores the page's colours
+     and sets its own. A test pattern that shifted with the theme would be no
+     test at all. The body lays its children out in a column with a maximum
+     width; a fixed overlay has to opt out of that. */
+
+  #stage { position: fixed; inset: 0; z-index: 50; display: none;
+           width: auto; max-width: none; margin: 0; background: #000; }
+  #stage.on { display: block; }
+  #cv { display: block; position: absolute; inset: 0; width: 100%; height: 100%; }
+  #dom { position: absolute; inset: 0; overflow: hidden; }
+
+  /* Styled after a screen's own on-screen menu: dark, small, out of the way,
+     and legible whether it is sitting on black or on white. */
+  #osd { position: absolute; z-index: 2; left: 50%; bottom: 30px; transform: translateX(-50%);
+         width: min(560px, 92vw); background: #0c0d10; color: #e9eaec;
+         border: 1px solid #2b2e34; border-radius: 6px; box-shadow: 0 0 0 1px #000;
+         font-family: var(--mono); opacity: 0; pointer-events: none; transition: opacity .18s; }
+  #osd.show { opacity: 1; pointer-events: auto; }
+  #osd .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 14px;
+             padding: 9px 12px; border-bottom: 1px solid #2b2e34; }
+  #osd .n { font-size: 13px; font-weight: 650; }
+  #osd .c { font-size: 11px; color: #f08b52; letter-spacing: .14em; }
+  #osd .bd { margin: 0; padding: 10px 12px; font-size: 12px; line-height: 1.6; color: #b6bac1; }
+  #osd .ft { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 10px; }
+  #osd button { font: 500 12px/1 var(--mono); color: #e9eaec; background: #16181d;
+                border: 1px solid #2b2e34; border-radius: 4px; padding: 7px 10px; }
+  #osd button:hover { color: #f08b52; border-color: #f08b52; background: #16181d; }
+  #osd button[aria-pressed="true"] { background: #f08b52; border-color: #f08b52; color: #1a1310; }
+  #osd :focus-visible { outline: 2px solid #f08b52; outline-offset: 2px; }
+  #osd .keys { margin: 0; padding: 0 12px 10px; font-size: 10.5px; line-height: 1.7; color: #6e737c; }
+  #osd .bar { height: 2px; background: #1b1d22; }
+  #osd .bar i { display: block; height: 100%; background: #f08b52; width: 0; }
+
+  .motion { position: absolute; inset: 0; overflow: hidden; }
+  .lane { position: absolute; left: 0; width: 100%; height: 15%; }
+  .mbar { display: block; position: absolute; top: 0; height: 100%; width: 120px; will-change: transform;
+          /* The bars have to move — that is the entire test — so this overrides the
+             blanket reduced-motion rule in base.css, which would otherwise turn the
+             sweep into a strobe. It wins on specificity, not on order. Where less
+             motion is asked for, the sweep simply starts slower. */
+          animation: sweep var(--sweep, 1s) linear infinite !important; }
+  @keyframes sweep { from { transform: translate3d(-240px, 0, 0); } to { transform: translate3d(100vw, 0, 0); } }
+  .mctl { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+          display: flex; align-items: center; gap: 10px;
+          font: 500 12px/1 var(--mono); color: #3d3d3d; }
+  .mctl button { font: inherit; color: #1c1c1c; background: #9a9a9a; border: 1px solid #6d6d6d;
+                 border-radius: 4px; padding: 7px 10px; }
+  .mctl button:hover { background: #b0b0b0; color: #000; border-color: #4d4d4d; }
+
+  .txt { position: absolute; inset: 0; background: #fff; color: #000; padding: 5vh 5vw; line-height: 1.45; }
+  .txt div { margin-bottom: 2px; }
+  .txt .corner { position: absolute; bottom: 5vh; font-size: 9px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Screen test</div>
+  <div class="spacer"></div>
+</header>
+
+<main>
+  <h1 style="view-transition-name:tool-screen">Screen test</h1>
+  <p class="lede">Full-screen patterns for checking a new monitor, phone or television — while you can still send it back. Run through all of them, or pick the one you need.</p>
+
+  <div class="strip" aria-hidden="true">
+    <i style="background:#000"></i><i style="background:#f00"></i><i style="background:#0f0"></i><i style="background:#00f"></i><i style="background:#0ff"></i><i style="background:#f0f"></i><i style="background:#ff0"></i><i style="background:#808080"></i><i style="background:#fff"></i>
+  </div>
+
+  <button type="button" class="go" id="runall" data-primary
+    data-tip="Goes full screen and steps through every pattern in turn, with a note on each one saying what to look for.">Start the full run</button>
+
+  <p class="keys">
+    <kbd>space</kbd> or <kbd>&rarr;</kbd> next &nbsp;·&nbsp; <kbd>&larr;</kbd> back &nbsp;·&nbsp;
+    <kbd>F</kbd> full screen &nbsp;·&nbsp; <kbd>A</kbd> move on by itself &nbsp;·&nbsp;
+    <kbd>H</kbd> hide the box &nbsp;·&nbsp; <kbd>esc</kbd> finish
+  </p>
+
+  <ul class="points">
+    <li><b>Full screen</b>The patterns cover everything else. Press <kbd>esc</kbd> whenever you want to come back here.</li>
+    <li><b>A clean screen</b>Wipe it first. Dust and smears look exactly like a dead pixel.</li>
+    <li><b>A dark room</b>Half of these are about light where there should be none.</li>
+    <li><b>Warmed up</b>Give it twenty minutes switched on before judging brightness or colour.</li>
+    <li><b>No zoom</b>The finest patterns only mean anything at the screen's real resolution.</li>
+  </ul>
+
+  <section class="group">
+    <h2>Solid colours</h2>
+    <p class="note">One colour at a time, filling the screen. This is how you find a pixel that has died or got stuck, and it is the first thing to do with a screen you might still return.</p>
+    <ul class="pats">
+      <li><button type="button" data-pat="black"
+        data-hint="In a dark room, every pixel should be off. A dot that still glows is stuck on. This is also the pattern for glow around the edges: look at it straight on, then compare the corners with the middle.">
+        <span class="t">Black</span><span class="d">Stuck pixels, and glow around the edges.</span></button></li>
+      <li><button type="button" data-pat="white"
+        data-hint="A dark speck that stays in one place is a dead pixel — but wipe the screen first, because dust looks exactly the same. Areas that look grubby, yellowish, or brighter than the rest are uneven lighting behind the panel.">
+        <span class="t">White</span><span class="d">Dead pixels, and patchy lighting.</span></button></li>
+      <li><button type="button" data-pat="red"
+        data-hint="Only the red lights are on. Every dot on your screen is really three lights — red, green and blue — side by side. A black speck here that looks fine on green and blue means one of the three has failed, not the whole pixel.">
+        <span class="t">Red</span><span class="d">Just the red lights.</span></button></li>
+      <li><button type="button" data-pat="green"
+        data-hint="Only the green lights are on. Green also shows up dust, smears and scratches better than any other colour, so it is worth a wipe and a second look.">
+        <span class="t">Green</span><span class="d">Just the green lights.</span></button></li>
+      <li><button type="button" data-pat="blue"
+        data-hint="Only the blue lights are on. Blue is the dimmest of the three and often looks slightly mottled even on a good screen, so judge it gently.">
+        <span class="t">Blue</span><span class="d">Just the blue lights.</span></button></li>
+      <li><button type="button" data-pat="cyan"
+        data-hint="Green and blue on, red off. A red light that is stuck on shows up here as a pale or white dot in the sea of cyan.">
+        <span class="t">Cyan</span><span class="d">Finds a red light stuck on.</span></button></li>
+      <li><button type="button" data-pat="magenta"
+        data-hint="Red and blue on, green off. A green light that is stuck on shows up here as a pale dot.">
+        <span class="t">Magenta</span><span class="d">Finds a green light stuck on.</span></button></li>
+      <li><button type="button" data-pat="yellow"
+        data-hint="Red and green on, blue off. A blue light that is stuck on shows up here as a pale dot.">
+        <span class="t">Yellow</span><span class="d">Finds a blue light stuck on.</span></button></li>
+      <li><button type="button" data-pat="grey50"
+        data-hint="A flat mid grey, the fairest field for spotting a colour cast. Look for a tint that is stronger on one side, and for faint vertical stripes as you sweep your eyes across.">
+        <span class="t">Mid grey</span><span class="d">Colour casts and faint stripes.</span></button></li>
+    </ul>
+  </section>
+
+  <section class="group">
+    <h2>Even lighting</h2>
+    <p class="note">Flat greys, which show up patchiness that solid black and white both hide. Step back a metre and let your eyes go soft — you are looking for large vague patches, not single dots.</p>
+    <ul class="pats">
+      <li><button type="button" data-pat="grey5"
+        data-hint="Very dark grey. This is where blotches and dirty-looking patches show up worst. Step back a metre and let your eyes unfocus rather than hunting over the surface.">
+        <span class="t">5% grey</span><span class="d">Very dark. The hardest test of the four.</span></button></li>
+      <li><button type="button" data-pat="grey15"
+        data-hint="Dark grey. Same again, one shade up. A patch that follows you from one grey to the next is the screen; one that does not is your eyes.">
+        <span class="t">15% grey</span><span class="d">Dark, and a little more forgiving.</span></button></li>
+      <li><button type="button" data-pat="grey25"
+        data-hint="Quarter brightness. Most films and games spend a lot of their time around here, so patchiness at this level is the kind you will actually notice.">
+        <span class="t">25% grey</span><span class="d">Where most dark scenes sit.</span></button></li>
+      <li><button type="button" data-pat="grey75"
+        data-hint="Light grey. Light fields show the opposite problem: bright spots where the light behind the panel is stronger, often near an edge or a corner.">
+        <span class="t">75% grey</span><span class="d">Light. Shows bright spots.</span></button></li>
+      <li><button type="button" data-pat="grey95"
+        data-hint="Nearly white. The last look for bright spots, and for edges that glow more than the middle does.">
+        <span class="t">95% grey</span><span class="d">Nearly white.</span></button></li>
+      <li><button type="button" data-pat="corner"
+        data-hint="Turn the lights off for this one. The small white square keeps your eyes adjusted so you judge the corners fairly instead of letting them adapt to pure black. Some glow near the corners is normal on many screens; a bright cloud, or one corner far worse than the others, is not.">
+        <span class="t">Corner glow</span><span class="d">Black, with a small white square to judge by.</span></button></li>
+    </ul>
+  </section>
+
+  <section class="group">
+    <h2>Light and dark</h2>
+    <p class="note">How your screen handles the steps between black and white. This is where settings turned up too far give themselves away, and most of what these find can be fixed from the screen's own menu.</p>
+    <ul class="pats">
+      <li><button type="button" data-pat="ramp"
+        data-hint="One sweep from black to white. It should look continuous. Bands with visible edges between them mean the screen cannot show all the shades in between, or is being fed a signal that has already thrown them away.">
+        <span class="t">Black to white</span><span class="d">A smooth sweep. Look for bands.</span></button></li>
+      <li><button type="button" data-pat="rgb"
+        data-hint="The same sweep in red, green and blue. Banding in only one of the three usually points at a setting or the cable rather than the screen itself.">
+        <span class="t">Colour sweeps</span><span class="d">The same again, one colour at a time.</span></button></li>
+      <li><button type="button" data-pat="shadows"
+        data-hint="Eleven strips from pure black up to a barely-there grey. You should be able to tell each strip from its neighbours. If the first few look like one black block, your screen is throwing away detail in the dark: turn brightness up, or look for a black level setting.">
+        <span class="t">Deep shadows</span><span class="d">Detail that gets lost in the dark.</span></button></li>
+      <li><button type="button" data-pat="highlights"
+        data-hint="Ten strips from near white up to white. If the last few merge into one, bright detail is being lost — clouds turn into white blobs. Contrast turned up too far is the usual cause.">
+        <span class="t">Bright highlights</span><span class="d">Detail that gets lost in the bright.</span></button></li>
+      <li><button type="button" data-pat="even"
+        data-hint="Sixteen equal steps from black to white. Each jump should look about the same size as the one before it. If the dark end bunches together or the bright end flattens out, the screen's brightness curve is off.">
+        <span class="t">Even steps</span><span class="d">Sixteen equal jumps in brightness.</span></button></li>
+    </ul>
+  </section>
+
+  <section class="group">
+    <h2>Fine detail and movement</h2>
+    <p class="note">Patterns drawn one real pixel at a time, and bars that move. These only mean something at the screen's own resolution, so make sure the browser's zoom is at 100% before you trust them.</p>
+    <ul class="pats">
+      <li><button type="button" data-pat="checker"
+        data-hint="A checkerboard of single pixels. From a normal distance it should look like a still, even grey. If it shimmers, flickers, or shows a slow watery pattern drifting across it, the screen is struggling to hold the picture steady.">
+        <span class="t">Fine checkerboard</span><span class="d">Should look like flat, still grey.</span></button></li>
+      <li><button type="button" data-pat="lines"
+        data-hint="Single-pixel stripes. The same rule: it should read as a still, even grey. Screens often pass one of these two patterns and fail the other, so try both.">
+        <span class="t">Fine lines</span><span class="d">The same test, in stripes.</span></button></li>
+      <li><button type="button" data-pat="grid"
+        data-hint="A grid of single-pixel lines. They should be crisp, even, and identical across the whole screen, with no colour fringes and no soft or doubled edges. Softness usually means the picture is being stretched, or a sharpness setting is turned up too far.">
+        <span class="t">Fine grid</span><span class="d">Crisp lines, or a stretched picture.</span></button></li>
+      <li><button type="button" data-pat="text"
+        data-hint="Real text at several sizes. Look for colour fringes along the edges of the letters, and check whether the smallest line is as readable in the corners as it is in the middle.">
+        <span class="t">Text</span><span class="d">How readable small type really is.</span></button></li>
+      <li><button type="button" data-pat="motion"
+        data-hint="Bars sweeping across grey. Follow one with your eyes. A smear trailing behind it means the screen is slow to change; a bright halo running ahead of it means its overdrive setting is pushed too hard. Change the speed with the buttons, or the up and down arrow keys.">
+        <span class="t">Moving bars</span><span class="d">Smearing and haloes behind moving things.</span></button></li>
+      <li><button type="button" data-pat="hz"
+        data-hint="The dial turns once every second, and the number below is how many pictures a second you are actually getting. Browsers cap and throttle this differently, so if the number looks low, try another browser and believe the highest one you see.">
+        <span class="t">Refresh rate</span><span class="d">Pictures a second, actually delivered.</span></button></li>
+    </ul>
+  </section>
+
+  <section class="group">
+    <h2>Trying to fix a stuck pixel</h2>
+    <p class="note">A pixel that is stuck on one colour is sometimes only jammed, and can be worked loose. A dead one — always black — cannot be brought back this way.</p>
+    <ul class="pats">
+      <li><button type="button" data-pat="fixer"
+        data-hint="Rapid colour flashing. Leave it running with the stuck pixel somewhere in the middle of the screen for ten to thirty minutes. It sometimes frees a light that is jammed, and it cannot do any harm, but it will not revive a pixel that is truly dead.">
+        <span class="t">Stuck pixel exerciser</span><span class="d">Flashes colours. Sometimes frees a stuck pixel.</span></button></li>
+    </ul>
+    <p class="note warn">This one flashes quickly. Skip it if flashing light is a problem for you. It is left out of the full run, and only starts when you choose it here.</p>
+  </section>
+
+  <details>
+    <summary>Technical details</summary>
+    <dl class="terms">
+      <dt>Dead, stuck and lit pixels</dt>
+      <dd>A dead pixel never lights and stays black on every colour. A stuck pixel is jammed on and shows as a coloured or white dot on black. Stuck ones sometimes free themselves; dead ones do not. Manufacturers allow a certain number of either before they call a screen faulty.</dd>
+      <dt>Backlight bleed and IPS glow</dt>
+      <dd>Both are the glow on a black screen. Bleed is light escaping around the edges of the panel and stays put as you move. Glow is the panel type showing its angle, and fades or shifts as you move your head — it is normal, and not a fault.</dd>
+      <dt>Mura, and the dirty screen effect</dt>
+      <dd>Faint blotches or vertical bands, easiest to see on a dark grey field or on a slow pan across a football pitch. Almost every panel has some. It matters when you can see it in the things you actually watch.</dd>
+      <dt>Banding</dt>
+      <dd>A smooth gradient breaking into visible steps. It can come from the panel, from the graphics settings, or from the video itself, so check the same clip from another source before blaming the screen.</dd>
+      <dt>Black crush and clipping</dt>
+      <dd>Shades near black merging into one black, or shades near white merging into one white. Usually brightness, contrast, or a mismatch between the limited and full signal range that computers and televisions each prefer.</dd>
+      <dt>Pixel inversion</dt>
+      <dd>Screens flip the voltage across each pixel every frame to stop the liquid crystal degrading. When the flipping falls into step with a single-pixel pattern you get shimmer, flicker, or a drifting moiré — which is what the checkerboard and line patterns look for.</dd>
+      <dt>Response time, ghosting and overdrive</dt>
+      <dd>How long a pixel takes to change. Too slow and moving edges smear behind themselves. Overdrive pushes the change harder to fix that, and pushed too far it overshoots, leaving a bright halo in front instead.</dd>
+      <dt>Real pixels</dt>
+      <dd>The fine patterns are drawn straight onto a canvas the size of the display in real device pixels, so a one-pixel line is one pixel of your screen rather than a scaled approximation. Browser zoom, or a screen not running at its native resolution, breaks that and makes those three patterns meaningless.</dd>
+      <dt>The refresh rate figure</dt>
+      <dd>Counted from frames the browser actually delivers, over the last half second. It is a measurement of the whole chain — screen, cable, graphics card, browser — and browsers throttle it in their own ways, so the highest figure any browser gives you is the closest to the truth.</dd>
+      <dt>This window</dt>
+      <dd id="size">—</dd>
+    </dl>
+  </details>
+</main>
+
+<div class="savebar">
+  <button type="button" id="save"
+    data-tip="Downloads this whole tool as one file. It works with no internet, forever, even if this website disappears.">Save this tool</button>
+  <p class="hint">Keep your own copy of this page — or press <kbd id="savekey">⌘ S</kbd>.</p>
+</div>
+
+<footer class="foot">
+  <p class="promise">Everything is made on your own device. What you type is never sent anywhere,
+    and never saved.</p>
+  <div class="links">
+    <span>Free and open source.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+    <a href="https://github.com/funkekaiser/tools">Source code</a>
+  </div>
+</footer>
+
+<div id="stage" role="dialog" aria-modal="true" aria-labelledby="osdName">
+  <canvas id="cv"></canvas>
+  <div id="dom"></div>
+  <div id="osd" aria-live="polite">
+    <div class="hd"><span class="n" id="osdName"></span><span class="c" id="osdCount"></span></div>
+    <p class="bd" id="osdHint"></p>
+    <div class="ft">
+      <button type="button" id="osdBack">&larr; Back</button>
+      <button type="button" id="osdNext">Next &rarr;</button>
+      <button type="button" id="osdAuto" aria-pressed="false">Move on by itself</button>
+      <button type="button" id="osdFull">Full screen</button>
+      <button type="button" id="osdExit">Finish</button>
+    </div>
+    <p class="keys">space or &rarr; next &nbsp;·&nbsp; &larr; back &nbsp;·&nbsp; F full screen &nbsp;·&nbsp; A move on by itself &nbsp;·&nbsp; H hide this box &nbsp;·&nbsp; esc finish</p>
+    <div class="bar"><i id="osdBar"></i></div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   The numbers behind the patterns, kept apart from the drawing so that
+   scripts/test-screen.mjs can check them against something independent.
+
+   Nothing here can be checked by looking at it. A checkerboard with a
+   flaw in it still looks like a checkerboard; a shadow ladder missing a
+   step still looks like a ladder. Both would quietly tell someone their
+   screen is fine when it is not.
+   ===================================================================== */
+var PATTERNS = (function () {
+  "use strict";
+
+  /* Tiles are rows of device pixels, 1 white and 0 black. They are repeated
+     from the top left corner of a canvas that is sized in device pixels, so
+     every line lands on a real pixel of the screen rather than between two. */
+  var TILES = {
+    checker: [[1, 0],
+              [0, 1]],
+    lines:   [[1, 1],
+              [0, 0]],
+    grid:    [[0, 0, 0, 0],
+              [0, 1, 1, 1],
+              [0, 1, 1, 1],
+              [0, 1, 1, 1]]
+  };
+
+  // A percentage of full brightness, as the 0-255 code the screen is sent.
+  // Multiplied before it is divided: percent / 100 first would put 50% at 127
+  // rather than 128, because 0.5 is the only one of these that lands on a half.
+  function grey(percent) { return Math.round(percent * 255 / 100); }
+
+  var STEPS = {
+    // Black, then the smallest steps above it. Anyone should be able to tell
+    // each from its neighbours; where they merge is where detail is being lost.
+    shadows:    [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16],
+    highlights: [239, 243, 246, 248, 250, 251, 252, 253, 254, 255],
+    // Sixteen even steps: 0, 17, 34 ... 255, which divides exactly.
+    even: (function () {
+      var out = [], i;
+      for (i = 0; i < 16; i++) out.push(i * 17);
+      return out;
+    })()
+  };
+
+  return { TILES: TILES, STEPS: STEPS, grey: grey };
+})();
+
+(function () {
+  "use strict";
+
+  var stage = document.getElementById("stage");
+  var cv = document.getElementById("cv");
+  var ctx = cv.getContext("2d", { alpha: false });
+  var dom = document.getElementById("dom");
+  var osd = document.getElementById("osd");
+  var buttons = Array.prototype.slice.call(document.querySelectorAll("[data-pat]"));
+  var MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+
+  var W = 0, H = 0, DPR = 1;
+  var cur = -1, auto = false, autoAt = 0, boxOn = true, raf = 0, t0 = 0, opener = null;
+  var osdTimer = 0, leavingFull = false;
+  var frames = 0, fpsAt = 0, worst = 0, fps = 0, slowest = 0, lastFrame = 0;
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var speed = reduce ? 260 : 900;
+
+  function noop() {}
+
+  /* ---------- drawing ---------- */
+
+  function fill(css) { ctx.fillStyle = css; ctx.fillRect(0, 0, W, H); }
+  function solid(css) { return function () { fill(css); }; }
+  function shade(percent) {
+    var v = PATTERNS.grey(percent);
+    return solid("rgb(" + v + "," + v + "," + v + ")");
+  }
+
+  // The canvas holds one pixel of the screen per pixel of its own, and nothing
+  // scales it, so a repeating tile lands exactly on the display's grid.
+  function tiled(name) {
+    return function () {
+      var rows = PATTERNS.TILES[name], h = rows.length, w = rows[0].length;
+      var tile = document.createElement("canvas");
+      tile.width = w;
+      tile.height = h;
+      var tc = tile.getContext("2d");
+      var img = tc.createImageData(w, h);
+      for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+          var v = rows[y][x] ? 255 : 0, i = (y * w + x) * 4;
+          img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+          img.data[i + 3] = 255;
+        }
+      }
+      tc.putImageData(img, 0, 0);
+      // No transform and no smoothing: the tile is copied pixel for pixel
+      // rather than resampled, which is the whole point of these three.
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = ctx.createPattern(tile, "repeat");
+      ctx.fillRect(0, 0, W, H);
+    };
+  }
+
+  // Codes side by side as vertical strips, each one labelled with its number.
+  function bands(codes) {
+    return function () {
+      var n = codes.length;
+      for (var i = 0; i < n; i++) {
+        var v = codes[i];
+        var x = Math.round(i * W / n), w = Math.ceil(W / n) + 1;
+        ctx.fillStyle = "rgb(" + v + "," + v + "," + v + ")";
+        ctx.fillRect(x, 0, w, H);
+        ctx.fillStyle = v > 128 ? "#000" : "#666";
+        ctx.font = Math.round(11 * DPR) + "px " + MONO;
+        ctx.textAlign = "center";
+        ctx.fillText(String(v), x + Math.round(W / n / 2), Math.round(24 * DPR));
+      }
+    };
+  }
+
+  function sweep(y, h, from, to) {
+    var g = ctx.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, from);
+    g.addColorStop(1, to);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, y, W, h);
+  }
+
+  function drawRamp() { sweep(0, H, "#000", "#fff"); }
+
+  function drawRgb() {
+    var h = Math.ceil(H / 3);
+    sweep(0, h, "#000", "#f00");
+    sweep(h, h, "#000", "#0f0");
+    sweep(2 * h, H - 2 * h, "#000", "#00f");
+  }
+
+  function drawCorner() {
+    fill("#000");
+    var s = Math.round(80 * DPR);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(Math.round(W / 2 - s / 2), Math.round(H / 2 - s / 2), s, s);
+  }
+
+  // Only the dial and the figures are repainted each frame, so what is being
+  // measured is the screen and the browser rather than the cost of the drawing.
+  function drawHz(t) {
+    var r = Math.min(W, H) * 0.18, cx = W / 2, cy = H / 2 - 40 * DPR;
+    var a = (t / 1000) * Math.PI * 2;
+    if (t < 40) fill("#0a0a0b");
+    var box = r * 2 + 40 * DPR;
+    ctx.fillStyle = "#0a0a0b";
+    ctx.fillRect(cx - box / 2, cy - box / 2, box, box);
+    ctx.fillRect(cx - W * 0.35, cy + r + 30 * DPR, W * 0.7, 150 * DPR);
+    ctx.strokeStyle = "#25272c";
+    ctx.lineWidth = 2 * DPR;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "#f08b52";
+    ctx.lineWidth = 3 * DPR;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.sin(a) * r, cy - Math.cos(a) * r);
+    ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#e9eaec";
+    ctx.font = "600 " + Math.round(54 * DPR) + "px " + MONO;
+    ctx.fillText(fps.toFixed(1) + " a second", cx, cy + r + 92 * DPR);
+    ctx.fillStyle = "#83878f";
+    ctx.font = Math.round(13 * DPR) + "px " + MONO;
+    ctx.fillText("each picture " + (1000 / Math.max(fps, 1)).toFixed(2) + " ms  ·  slowest " +
+      slowest.toFixed(1) + " ms", cx, cy + r + 126 * DPR);
+    ctx.fillText(W + " × " + H + " real pixels  ·  drawn at " + DPR + "×", cx, cy + r + 152 * DPR);
+  }
+
+  function drawFixer(t) {
+    var cells = 24, cw = Math.ceil(W / cells), ch = Math.ceil(H / cells);
+    var k = Math.floor(t / 60), colours = ["#f00", "#0f0", "#00f", "#fff", "#000", "#ff0"];
+    for (var y = 0; y < cells; y++) {
+      for (var x = 0; x < cells; x++) {
+        ctx.fillStyle = colours[(x * 7 + y * 13 + k * 5) % 6];
+        ctx.fillRect(x * cw, y * ch, cw, ch);
+      }
+    }
+  }
+
+  /* ---------- the two patterns made of real elements ---------- */
+
+  var LINE = " — Sphinx of black quartz, judge my vow. 0123456789 Iljl1 O0";
+  var TEXT_HTML = [
+    '<div class="txt">',
+    '<div style="font-size:9px">9px', LINE, '</div>',
+    '<div style="font-size:11px">11px', LINE, '</div>',
+    '<div style="font-size:13px">13px', LINE, '</div>',
+    '<div style="font-size:16px">16px', LINE, '</div>',
+    '<div style="font-size:22px">22px — Sphinx of black quartz, judge my vow.</div>',
+    '<div style="font-size:34px;font-weight:600">34px — Sphinx of black quartz</div>',
+    '<div style="margin-top:4vh;font-family:', MONO, ';font-size:12px">',
+    'const ok = (l1 !== lI) &amp;&amp; (rn != m);  // 12px, fixed width</div>',
+    '<span class="corner" style="left:5vw">9px in the corner — still readable?</span>',
+    '<span class="corner" style="right:5vw">9px in the corner — still readable?</span>',
+    '</div>'
+  ].join("");
+
+  var MOTION_HTML = [
+    '<div class="motion">',
+    '<div class="lane" style="top:8%"><i class="mbar" style="background:#000"></i></div>',
+    '<div class="lane" style="top:31%"><i class="mbar" style="background:#fff"></i></div>',
+    '<div class="lane" style="top:54%"><i class="mbar" style="background:#e02020"></i></div>',
+    '<div class="lane" style="top:77%"><i class="mbar" style="background:#000;width:36px"></i></div>',
+    '<div class="mctl">',
+    '<button type="button" data-speed="down">Slower</button>',
+    '<span><b id="mspd"></b> pixels a second</span>',
+    '<button type="button" data-speed="up">Faster</button>',
+    '</div></div>'
+  ].join("");
+
+  /* ---------- what each button on the page does ----------
+     The names and the words all live in the markup; this only says how each
+     one is drawn. Keys must match the data-pat attributes up there. */
+
+  var TEST = {
+    black:      { draw: solid("#000") },
+    white:      { draw: solid("#fff") },
+    red:        { draw: solid("#f00") },
+    green:      { draw: solid("#0f0") },
+    blue:       { draw: solid("#00f") },
+    cyan:       { draw: solid("#0ff") },
+    magenta:    { draw: solid("#f0f") },
+    yellow:     { draw: solid("#ff0") },
+    grey50:     { draw: shade(50) },
+    grey5:      { draw: shade(5) },
+    grey15:     { draw: shade(15) },
+    grey25:     { draw: shade(25) },
+    grey75:     { draw: shade(75) },
+    grey95:     { draw: shade(95) },
+    corner:     { draw: drawCorner },
+    ramp:       { draw: drawRamp },
+    rgb:        { draw: drawRgb },
+    shadows:    { draw: bands(PATTERNS.STEPS.shadows) },
+    highlights: { draw: bands(PATTERNS.STEPS.highlights) },
+    even:       { draw: bands(PATTERNS.STEPS.even) },
+    checker:    { draw: tiled("checker") },
+    lines:      { draw: tiled("lines") },
+    grid:       { draw: tiled("grid") },
+    text:       { html: TEXT_HTML, bg: "#fff" },
+    motion:     { html: MOTION_HTML, bg: "#7a7a7a" },
+    hz:         { draw: drawHz, anim: true },
+    fixer:      { draw: drawFixer, anim: true, skip: true }
+  };
+
+  function def(i) { return TEST[buttons[i].getAttribute("data-pat")] || {}; }
+
+  /* ---------- running them ---------- */
+
+  function fit() {
+    DPR = window.devicePixelRatio || 1;
+    W = Math.round(innerWidth * DPR);
+    H = Math.round(innerHeight * DPR);
+    cv.width = W;
+    cv.height = H;
+    if (cur >= 0) { render(0); applySpeed(); }
+  }
+
+  function render(t) {
+    var d = def(cur);
+    if (d.html) {
+      if (!dom.innerHTML) {
+        dom.innerHTML = d.html;
+        applySpeed();
+      }
+      fill(d.bg || "#000");
+    } else {
+      if (dom.innerHTML) dom.innerHTML = "";
+      if (d.draw) d.draw(t);
+    }
+  }
+
+  function loop(now) {
+    var t = now - t0;
+    frames++;
+    if (lastFrame) worst = Math.max(worst, now - lastFrame);
+    lastFrame = now;
+    if (now - fpsAt >= 500) {
+      fps = frames * 1000 / (now - fpsAt);
+      slowest = worst;
+      frames = 0;
+      worst = 0;
+      fpsAt = now;
+    }
+    if (def(cur).anim) render(t);
+    else if (t < 20) render(t);
+    if (auto && now - autoAt > 5000) step(1);
+    raf = requestAnimationFrame(loop);
+  }
+
+  function step(d) {
+    var n = cur;
+    // The exerciser flashes, so it is never reached by moving on automatically.
+    do { n = (n + d + buttons.length) % buttons.length; } while (def(n).skip && auto);
+    cur = n;
+    t0 = performance.now();
+    autoAt = t0;
+    dom.innerHTML = "";
+    render(0);
+    showOsd();
+  }
+
+  function start(i, run) {
+    opener = document.activeElement;
+    cur = i;
+    auto = !!run;
+    syncAuto();
+    stage.classList.add("on");
+    document.documentElement.style.overflow = "hidden";
+    setAside(true);
+    goFull();
+    fit();
+    dom.innerHTML = "";
+    t0 = performance.now();
+    autoAt = t0;
+    fpsAt = t0;
+    lastFrame = 0;
+    render(0);
+    showOsd();
+    document.getElementById("osdNext").focus();
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(loop);
+  }
+
+  function stop() {
+    cancelAnimationFrame(raf);
+    raf = 0;
+    cur = -1;
+    auto = false;
+    stage.classList.remove("on");
+    osd.classList.remove("show");
+    dom.innerHTML = "";
+    document.documentElement.style.overflow = "";
+    setAside(false);
+    if (document.fullscreenElement) {
+      leavingFull = true;
+      var p = document.exitFullscreen();
+      if (p && p.catch) p.catch(noop);
+    }
+    if (opener && opener.focus) opener.focus();
+  }
+
+  // Nothing behind the patterns should be reachable by tab while they are up.
+  function setAside(on) {
+    Array.prototype.forEach.call(document.body.children, function (el) {
+      if (el === stage) return;
+      if (on) el.setAttribute("inert", "");
+      else el.removeAttribute("inert");
+    });
+  }
+
+  /* ---------- full screen ---------- */
+
+  function goFull() {
+    var el = document.documentElement;
+    // Not every browser will go full screen outside a video. The patterns still
+    // fill the window when it refuses, which is why nothing here depends on it.
+    if (!document.fullscreenElement && el.requestFullscreen) {
+      var p = el.requestFullscreen();
+      if (p && p.catch) p.catch(noop);
+    }
+  }
+
+  function toggleFull() {
+    if (!document.fullscreenElement) return goFull();
+    leavingFull = true;
+    var p = document.exitFullscreen();
+    if (p && p.catch) p.catch(noop);
+  }
+
+  // Escape leaves full screen without the key ever reaching this page, so that
+  // is someone asking to get out. Pressing F is not: that is someone who wants
+  // to carry on testing in a window.
+  document.addEventListener("fullscreenchange", function () {
+    if (document.fullscreenElement) { leavingFull = false; return; }
+    if (cur >= 0 && !leavingFull) stop();
+    leavingFull = false;
+  });
+
+  /* ---------- the box on top ---------- */
+
+  function showOsd() {
+    if (cur < 0) return;
+    var b = buttons[cur];
+    document.getElementById("osdName").textContent = b.querySelector(".t").textContent;
+    document.getElementById("osdCount").textContent =
+      (cur + 1) + " of " + buttons.length;
+    document.getElementById("osdHint").textContent = b.getAttribute("data-hint");
+    document.getElementById("osdBar").style.width = ((cur + 1) / buttons.length * 100) + "%";
+    if (!boxOn) return;
+    osd.classList.add("show");
+    clearTimeout(osdTimer);
+    osdTimer = setTimeout(function () { osd.classList.remove("show"); }, 4500);
+  }
+
+  function hideOsd() {
+    clearTimeout(osdTimer);
+    osd.classList.remove("show");
+  }
+
+  function syncAuto() {
+    document.getElementById("osdAuto").setAttribute("aria-pressed", String(auto));
+  }
+
+  function setSpeed(v) {
+    speed = Math.max(60, Math.min(6000, v));
+    applySpeed();
+  }
+
+  // One sweep covers the window plus the bar's own run-up, so the figure on the
+  // screen is the real speed in pixels a second whatever the window is doing.
+  function applySpeed() {
+    var box = dom.querySelector(".motion");
+    if (!box) return;
+    box.style.setProperty("--sweep", ((innerWidth + 240) / speed).toFixed(3) + "s");
+    var n = dom.querySelector("#mspd");
+    if (n) n.textContent = Math.round(speed);
+  }
+
+  /* ---------- wiring ---------- */
+
+  buttons.forEach(function (b, i) {
+    b.addEventListener("click", function () { start(i, false); });
+  });
+  document.getElementById("runall").addEventListener("click", function () { start(0, true); });
+
+  document.getElementById("osdBack").addEventListener("click", function () { auto = false; syncAuto(); step(-1); });
+  document.getElementById("osdNext").addEventListener("click", function () { auto = false; syncAuto(); step(1); });
+  document.getElementById("osdFull").addEventListener("click", toggleFull);
+  document.getElementById("osdExit").addEventListener("click", stop);
+  document.getElementById("osdAuto").addEventListener("click", function () {
+    auto = !auto;
+    autoAt = performance.now();
+    syncAuto();
+    showOsd();
+  });
+
+  dom.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-speed]");
+    if (!b) return;
+    setSpeed(b.getAttribute("data-speed") === "up" ? speed * 1.3 : speed / 1.3);
+  });
+
+  // Anywhere that is not a control moves on, which is the whole interface on a
+  // screen with no keyboard.
+  stage.addEventListener("click", function (e) {
+    if (e.target.closest("button")) return;
+    auto = false;
+    syncAuto();
+    step(1);
+  });
+
+  addEventListener("keydown", function (e) {
+    if (cur < 0) return;
+    var k = e.key.toLowerCase();
+    var onControl = e.target && e.target.closest && e.target.closest("#osd button");
+    if (k === "escape") return stop();
+    // Space and Enter belong to whichever button has the focus.
+    if (onControl && (k === " " || k === "enter")) return;
+    if (k === " " || k === "arrowright") { e.preventDefault(); auto = false; syncAuto(); step(1); }
+    else if (k === "arrowleft") { e.preventDefault(); auto = false; syncAuto(); step(-1); }
+    else if (k === "arrowup") { e.preventDefault(); setSpeed(speed * 1.3); }
+    else if (k === "arrowdown") { e.preventDefault(); setSpeed(speed / 1.3); }
+    else if (k === "f") toggleFull();
+    else if (k === "a") { auto = !auto; autoAt = performance.now(); syncAuto(); showOsd(); }
+    else if (k === "h") { boxOn = !boxOn; if (boxOn) showOsd(); else hideOsd(); }
+  });
+
+  addEventListener("pointermove", function () { if (cur >= 0) showOsd(); });
+
+  addEventListener("resize", function () {
+    sizeNote();
+    if (cur >= 0) fit();
+  });
+
+  function sizeNote() {
+    var dpr = window.devicePixelRatio || 1;
+    document.getElementById("size").textContent =
+      Math.round(innerWidth * dpr) + " × " + Math.round(innerHeight * dpr) +
+      " real pixels, drawn at " + dpr + "× — " +
+      (dpr === Math.round(dpr) ? "a whole number, which is what the fine patterns need"
+                               : "not a whole number, so the fine patterns cannot be trusted here");
+  }
+
+  sizeNote();
+})();
+</script>
+
+</body>
+</html>
