@@ -16,6 +16,20 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const dist = join(root, "dist");
 const TAGLINE = "No ads. No tracking. Free forever.";
 
+// Every page ends the same way. Tool sources carry this markup themselves so they
+// still open straight in a browser; the build only checks that none of them has
+// drifted from it.
+const FOOTER = `<footer class="foot">
+  <p class="promise">Everything is made on your own device. What you type is never sent anywhere,
+    and never saved.</p>
+  <div class="links">
+    <span>Free and open source.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+    <a href="https://github.com/funkekaiser/tools">Source code</a>
+  </div>
+</footer>`;
+
 const esc = (s) => String(s).replace(/[&<>"]/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -46,6 +60,8 @@ for (const file of readdirSync(join(root, "tools")).sort()) {
       `<style>\n${safe(css)}</style>`)
     .replace(/<script src="\.\.\/shared\/shell\.js"><\/script>/,
       `<script>\n${safe(js)}</script>`);
+
+  if (!html.includes(FOOTER)) throw new Error(`${file} does not end with the shared footer`);
 
   if (html.includes("../shared/")) throw new Error(`${file} still references shared/ after inlining`);
   const external = html.match(/(?:href|src)="(https?:\/\/(?!github\.com\/funkekaiser\/tools)[^"]+)"/);
@@ -111,14 +127,7 @@ ${cards}
   </ul>
 </main>
 
-<footer class="foot">
-  <div class="links">
-    <span>Free and open source.</span>
-    <span class="spacer"></span>
-    <button type="button" id="theme" hidden>Theme</button>
-    <a href="https://github.com/funkekaiser/tools">Source code</a>
-  </div>
-</footer>
+${FOOTER}
 
 <script>
 (function () {

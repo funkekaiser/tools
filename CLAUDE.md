@@ -85,6 +85,12 @@ These choices are settled and recorded so they are not quietly undone later.
   forever — belong on the front page and in the footer, not in the header and intro of every
   tool. Say it once, put it out of the way, and give the space back to the thing the visitor
   came to use.
+- **Every page ends with the same footer.** The privacy promise, "Free and open source.", the
+  theme button and the source link, in that order, byte-for-byte identical on the front page and
+  on every tool. Tool sources carry the markup themselves so they still open in a browser; the
+  `FOOTER` constant in build.mjs is the copy the front page uses, and the build refuses to
+  publish a tool whose footer has drifted from it. Tool pages do not repeat an "All tools" link
+  down there — the header crumb already goes home.
 - **Jargon goes behind a "Technical details" toggle.** The main interface uses plain words;
   the exact version, mask and mode stay available for people who want them, collapsed by
   default.
