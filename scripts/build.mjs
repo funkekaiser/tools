@@ -61,8 +61,6 @@ for (const file of readdirSync(join(root, "tools")).sort()) {
     .replace(/<script src="\.\.\/shared\/shell\.js"><\/script>/,
       `<script>\n${safe(js)}</script>`);
 
-  if (!html.includes(FOOTER)) throw new Error(`${file} does not end with the shared footer`);
-
   if (html.includes("../shared/")) throw new Error(`${file} still references shared/ after inlining`);
   const external = html.match(/(?:href|src)="(https?:\/\/(?!github\.com\/funkekaiser\/tools)[^"]+)"/);
   if (external) throw new Error(`${file} loads something from another site: ${external[1]}`);

@@ -88,9 +88,18 @@ These choices are settled and recorded so they are not quietly undone later.
 - **Every page ends with the same footer.** The privacy promise, "Free and open source.", the
   theme button and the source link, in that order, byte-for-byte identical on the front page and
   on every tool. Tool sources carry the markup themselves so they still open in a browser; the
-  `FOOTER` constant in build.mjs is the copy the front page uses, and the build refuses to
-  publish a tool whose footer has drifted from it. Tool pages do not repeat an "All tools" link
-  down there — the header crumb already goes home.
+  `FOOTER` constant in build.mjs is the copy the front page uses, and `template/tool.html` is the
+  copy a new tool starts from. Nothing checks that they match — a build-time comparison was tried
+  and removed as machinery for a rule nobody was breaking. Moving the header, save bar and footer
+  into the build so they exist once was considered and rejected as well: the build would then be
+  assembling pages, and `tools/<slug>.html` would no longer be a whole page you can open. That
+  independence is worth more than the repetition costs. Tool pages do not repeat an "All tools"
+  link down there — the header crumb already goes home.
+- **The template lives outside `tools/`.** `template/tool.html` is a real page, not a
+  skeleton: it opens in a browser and runs, so the conventions can be seen working rather
+  than described. It sits in its own directory because the build publishes everything in
+  `tools/`, and because it is not a draft — `drafts/` is for experiments that may never
+  ship. Being one level deep keeps the `../shared/` links correct when it is copied.
 - **Jargon goes behind a "Technical details" toggle.** The main interface uses plain words;
   the exact version, mask and mode stay available for people who want them, collapsed by
   default.
@@ -99,6 +108,7 @@ These choices are settled and recorded so they are not quietly undone later.
 
 ```
 tools/<slug>.html          a whole tool: markup, styles, script, metadata block
+template/tool.html         the starting point for a new tool, not published
 shared/base.css            the look, inlined into every tool by the build
 shared/shell.js            theme + Save button, inlined into every tool by the build
 scripts/build.mjs          tools/ -> dist/, and writes the front page
@@ -126,8 +136,15 @@ links resolve, so there is nothing to run.
 
 ## Adding a tool
 
-Copy `tools/qr.html`. Keep its head, its `../shared/` links, its metadata block, its
-`.savebar`, and its label and heading conventions; replace the rest. Then run the build.
+Copy `template/tool.html` to `tools/<slug>.html`. It is a working page — open it in a
+browser first and see it run. Then: fill in the metadata block and the `<title>`, make the
+`<h1>` text match `title` exactly and its `view-transition-name` match the slug, and replace
+everything between the comment markers in `<main>` with the real tool. The head, the
+`.savebar` and the footer are copied as they are.
+
+Keep the template working. Nothing verifies it, and it is the one file the build never
+touches, so a change to `shared/` that breaks it will not surface until someone starts a
+tool with it.
 
 Do not scaffold tools nobody asked for.
 

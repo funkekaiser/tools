@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>New tool</title>
+<meta name="description" content="One sentence about what this tool does. Free, no ads, no tracking, nothing uploaded.">
+<link rel="stylesheet" href="../shared/base.css">
+<script src="../shared/shell.js"></script>
+<!-- The front page is built from this block. title and blurb are shown on the card;
+     tags and keywords only feed its search box. title must match the <h1> below. -->
+<script type="application/json" id="tool">
+{
+  "title": "New tool",
+  "blurb": "One or two plain sentences a stranger would understand, saying what they get.",
+  "tags": ["category"],
+  "keywords": ["words", "someone", "might", "search", "for"]
+}
+</script>
+<style>
+  /* Only what this tool needs. The look lives in shared/base.css — these are the
+     few layout pieces every tool has repeated so far. Delete what you do not use. */
+  .split { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .field { margin-bottom: 20px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .out { display: flex; flex-direction: column; gap: 14px; }
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 14px; }
+  summary:hover { color: var(--acc); }
+  .facts { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px;
+           font-size: 14px; font-family: var(--mono); }
+  .facts dt { color: var(--dim); }
+  .facts dd { margin: 0; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> New tool</div>
+  <div class="spacer"></div>
+</header>
+
+<main>
+  <!-- view-transition-name must be tool-<slug>, and the heading text must match
+       "title" above, or the animation from the front page reads as two things. -->
+  <h1 style="view-transition-name:tool-template">New tool</h1>
+  <p class="lede">A sentence telling someone what to do first. No promises about ads or privacy here — the footer says all that once.</p>
+
+  <!-- ==================================================================
+       Everything from here to the end of <main> is placeholder. It works,
+       so you can see the wiring: controls on the left, result on the right.
+       Replace it with the real tool.
+       ================================================================== -->
+  <div class="split" style="margin-top:28px">
+    <form id="form" autocomplete="off">
+      <div class="field">
+        <!-- data-primary gets focus when someone presses "/" -->
+        <label for="text">What should it work on?</label>
+        <textarea id="text" data-primary rows="4" spellcheck="false">Type something here.</textarea>
+      </div>
+
+      <!-- A group of choices shares one explanation line: data-tip-anchor on the
+           container, data-tip on each button, aria-pressed saying which is on. -->
+      <fieldset class="field">
+        <legend class="label" id="case-label">How should it come out?</legend>
+        <div class="seg" role="group" aria-labelledby="case-label" data-tip-anchor>
+          <button type="button" data-case="as" aria-pressed="true"
+            data-tip="Exactly as you typed it.">As typed</button>
+          <button type="button" data-case="upper" aria-pressed="false"
+            data-tip="Every letter as a capital.">CAPITALS</button>
+          <button type="button" data-case="lower" aria-pressed="false"
+            data-tip="Every letter small.">small letters</button>
+        </div>
+      </fieldset>
+    </form>
+
+    <section class="out" aria-labelledby="result-h">
+      <h2 id="result-h" class="sr">The result</h2>
+      <p class="mono panel" id="result" aria-live="polite"></p>
+      <p id="error" class="err" role="alert"></p>
+
+      <div class="actions">
+        <!-- Name the button after what you get, not what you might do with it.
+             The reason for wanting it goes in data-tip. -->
+        <button type="button" id="copy"
+          data-tip="Copies the result to your clipboard, ready to paste.">Copy</button>
+      </div>
+
+      <!-- Jargon lives here, collapsed, so the interface above stays plain. -->
+      <details>
+        <summary>Technical details</summary>
+        <dl class="facts">
+          <dt>characters</dt><dd id="s-chars">—</dd>
+          <dt>lines</dt><dd id="s-lines">—</dd>
+        </dl>
+      </details>
+    </section>
+  </div>
+</main>
+
+<!-- Page furniture: the save bar and the footer sit outside the tool, and both are
+     copied as they are. The footer is byte-for-byte the same on every page, including
+     the front page the build writes — change one and you change all of them. -->
+<div class="savebar">
+  <button type="button" id="save"
+    data-tip="Downloads this whole tool as one file. It works with no internet, forever, even if this website disappears.">Save this tool</button>
+  <p class="hint">Keep your own copy of this page — or press <kbd id="savekey">⌘ S</kbd>.</p>
+</div>
+
+<footer class="foot">
+  <p class="promise">Everything is made on your own device. What you type is never sent anywhere,
+    and never saved.</p>
+  <div class="links">
+    <span>Free and open source.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+    <a href="https://github.com/funkekaiser/tools">Source code</a>
+  </div>
+</footer>
+
+<script>
+/* Placeholder behaviour — replace it. Anything with real algorithmic content
+   gets a test in scripts/, because a wrong answer looks exactly like a right one. */
+(function () {
+  "use strict";
+
+  var text = document.getElementById("text");
+  var out = document.getElementById("result");
+  var seg = document.querySelector("[data-tip-anchor]");
+  var mode = "as";
+
+  function render() {
+    var s = text.value;
+    out.textContent = mode === "upper" ? s.toUpperCase() : mode === "lower" ? s.toLowerCase() : s;
+    document.getElementById("s-chars").textContent = s.length;
+    document.getElementById("s-lines").textContent = s.split("\n").length;
+  }
+
+  text.addEventListener("input", render);
+  seg.addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-case]");
+    if (!btn) return;
+    Array.prototype.forEach.call(seg.querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", String(b === btn));
+    });
+    mode = btn.dataset.case;
+    render();
+  });
+
+  document.getElementById("copy").addEventListener("click", function () {
+    navigator.clipboard.writeText(out.textContent);
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
