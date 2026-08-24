@@ -53,8 +53,9 @@ scripts. You can also just open `tools/qr.html` in a browser while working on it
 
 ## Adding a tool
 
-Copy `tools/qr.html`, keep its head, its `../shared/` links, its metadata block and its
-save bar, and replace the rest. Then run the build.
+Copy `template/tool.html` to `tools/<slug>.html`. It is a working page, so open it in a
+browser first to see the conventions running. Fill in its metadata block, replace the
+placeholder between the comment markers with the real tool, and run the build.
 
 ## Licence
 
