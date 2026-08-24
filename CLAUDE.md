@@ -98,13 +98,14 @@ These choices are settled and recorded so they are not quietly undone later.
 ## Layout
 
 ```
-tools/<slug>.html      a whole tool: markup, styles, script, metadata block
-shared/base.css        the look, inlined into every tool by the build
-shared/shell.js        theme + Save button, inlined into every tool by the build
-scripts/build.mjs      tools/ -> dist/, and writes the front page
-scripts/test-qr.mjs    checks the QR encoder inside tools/qr.html
-dist/                  generated, gitignored, what Cloudflare serves
-drafts/                unfinished experiments, not published
+tools/<slug>.html          a whole tool: markup, styles, script, metadata block
+shared/base.css            the look, inlined into every tool by the build
+shared/shell.js            theme + Save button, inlined into every tool by the build
+scripts/build.mjs          tools/ -> dist/, and writes the front page
+scripts/test-qr.mjs        checks the QR encoder inside tools/qr.html
+scripts/test-password.mjs  checks the generator inside tools/password.html
+dist/                      generated, gitignored, what Cloudflare serves
+drafts/                    unfinished experiments, not published
 ```
 
 The metadata block inside each tool is
@@ -116,6 +117,7 @@ The metadata block inside each tool is
 ```sh
 node scripts/build.mjs                 # build dist/
 node scripts/test-qr.mjs               # verify the QR encoder
+node scripts/test-password.mjs         # verify the password generator
 python3 -m http.server 8000 -d dist    # serve the built site
 ```
 
