@@ -19,3 +19,6 @@ jobs:
 
       - name: Test the qr encoder
         run: node scripts/test-qr.mjs
+
+      - name: Test the password generator
+        run: node scripts/test-password.mjs
