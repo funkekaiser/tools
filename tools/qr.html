@@ -48,7 +48,7 @@
 </header>
 
 <main>
-  <h1>Make a QR code</h1>
+  <h1 style="view-transition-name:tool-qr">QR code maker</h1>
   <p class="lede">Type a link, a Wi-Fi password, or any text at all, and get a square code that any
     phone camera can read. <strong>It is made on your own device.</strong> What you type is never
     sent anywhere and never saved.</p>
@@ -62,7 +62,7 @@
 
       <fieldset class="field">
         <legend class="label" id="tough-label">How tough should it be?</legend>
-        <div class="seg" role="group" aria-labelledby="tough-label">
+        <div class="seg" role="group" aria-labelledby="tough-label" data-tip-anchor>
           <button type="button" data-ecl="L" aria-pressed="false"
             data-tip="Still scans with about 7% of it scratched or covered. Makes the smallest code.">Basic</button>
           <button type="button" data-ecl="M" aria-pressed="true"
@@ -117,13 +117,13 @@
       </details>
     </section>
   </div>
-
-  <div class="savebar" style="margin-top:32px">
-    <button type="button" id="save"
-      data-tip="Downloads this whole tool as one file. It works with no internet, forever, even if this website disappears.">Save this tool</button>
-    <p class="hint">Keep your own copy — or press <kbd id="savekey">⌘ S</kbd>.</p>
-  </div>
 </main>
+
+<div class="savebar">
+  <button type="button" id="save"
+    data-tip="Downloads this whole tool as one file. It works with no internet, forever, even if this website disappears.">Save this tool</button>
+  <p class="hint">Keep your own copy of this page — or press <kbd id="savekey">⌘ S</kbd>.</p>
+</div>
 
 <footer class="foot">
   <a href="../">All tools</a>

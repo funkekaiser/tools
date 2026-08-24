@@ -47,6 +47,44 @@ stamp and re-gzip each file until the number stopped changing. All of that was m
 in service of a rule nobody needed. Keep tools small because small is good, not because
 something fails the build. Do not reintroduce any of it.
 
+## Design decisions
+
+These choices are settled and recorded so they are not quietly undone later.
+
+- **Nothing is explained by hover alone.** Control explanations live in a `data-tip`
+  attribute. On pointer devices shell.js shows them as a tooltip on hover and on keyboard
+  focus. Where `(hover: none)` matches — touch screens — shell.js prints the same text onto
+  the page as a `.tip-inline` paragraph instead. A tooltip is never the only way to read
+  something.
+- **Grouped choices share one explanation line.** A container marked `data-tip-anchor` (like
+  the toughness buttons) gets a single inline line that follows whichever option is
+  selected, rather than one paragraph per button.
+- **Buttons are named after what you get, not what you might do with it.** "Download PNG"
+  and "Download SVG", not "Download for printing". The use case belongs in the tooltip; the
+  button says what the file is.
+- **The save bar sits between `</main>` and `<footer>`.** It was inside the tool originally
+  and read as "save the QR code" rather than "save this page". It is page furniture, not a
+  tool control, so it lives outside the tool.
+- **One column width per page.** Everything shares the `--max` container. A narrower reading
+  column was tried for the front page and reverted — it looked worse. The intro paragraph
+  must span the full column; capping it to a short measure makes it read as accidentally
+  indented.
+- **Headings use `text-wrap: balance`, body copy uses `text-wrap: pretty`.** Stops
+  unbalanced headings and paragraphs that end on a single stranded word.
+- **System fonts only.** Sans for prose and controls, monospace only for actual data. This
+  follows from the no-network rule — a web font would be a request — but it is also the
+  friendlier choice for a general audience.
+- **The tool's name travels between pages.** base.css opts into cross-document view
+  transitions with `@view-transition { navigation: auto; }`. Each tool's `<h1>` carries
+  `view-transition-name: tool-<slug>`, matching the name build.mjs puts on that tool's card
+  title on the front page, so the title animates from the card into the heading. This
+  requires the `<h1>` text to be identical to the tool's `title` in its metadata block,
+  otherwise the morph reads as two different things crossfading. Browsers without support
+  just navigate normally. Disabled under `prefers-reduced-motion`.
+- **Jargon goes behind a "Technical details" toggle.** The main interface uses plain words;
+  the exact version, mask and mode stay available for people who want them, collapsed by
+  default.
+
 ## Layout
 
 ```
