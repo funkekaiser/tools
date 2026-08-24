@@ -71,17 +71,21 @@ main { flex: 1; }
   padding-bottom: 14px;
   border-bottom: 1px solid var(--line);
 }
-.topbar .crumb { font-weight: 600; letter-spacing: -0.01em; }
+.topbar .crumb { letter-spacing: -0.01em; }
 .topbar .crumb a { color: var(--ink); text-decoration: none; }
 .topbar .crumb a:hover { color: var(--acc); }
-.topbar .crumb span { color: var(--dim); font-weight: 400; }
+.topbar .crumb strong { font-weight: 650; }
+.topbar .crumb .dom, .topbar .crumb .sep { color: var(--dim); font-weight: 400; }
 .topbar .tagline { color: var(--dim); font-size: 14px; }
 .spacer { flex: 1 1 auto; }
 
-h1 { font-size: clamp(24px, 4vw, 30px); font-weight: 650; letter-spacing: -0.02em; margin: 0 0 8px; line-height: 1.25; }
-h2 { font-size: 17px; font-weight: 600; margin: 0 0 10px; }
+h1 { font-size: clamp(24px, 4vw, 30px); font-weight: 650; letter-spacing: -0.02em; margin: 0 0 8px;
+     line-height: 1.25; text-wrap: balance; }
+h2 { font-size: 17px; font-weight: 600; margin: 0 0 10px; text-wrap: balance; }
+/* pretty stops a paragraph ending on a single stranded word */
+p, li, .hint, .note { text-wrap: pretty; }
 p { margin: 0 0 12px; }
-.lede { color: var(--dim); margin: 0; max-width: 60ch; }
+.lede { color: var(--dim); margin: 0; max-width: 62ch; }
 .lede strong { color: var(--ink); font-weight: 600; }
 
 a { color: var(--acc); text-underline-offset: 3px; }

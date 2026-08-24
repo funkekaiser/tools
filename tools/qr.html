@@ -42,23 +42,22 @@
 <body>
 
 <header class="topbar">
-  <div class="crumb"><a href="../">tools</a> <span>/</span> QR code maker</div>
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> QR code maker</div>
   <div class="spacer"></div>
   <div class="tagline">No ads. No tracking. Free forever.</div>
 </header>
 
 <main>
   <h1>Make a QR code</h1>
-  <p class="lede">Type a link, a Wi-Fi password, or any text at all. You get a square code that any
-    phone camera can read. <strong>Everything happens on your own device</strong> — what you type
-    is never sent anywhere, and nothing is saved.</p>
+  <p class="lede">Type a link, a Wi-Fi password, or any text at all, and get a square code that any
+    phone camera can read. <strong>It is made on your own device.</strong> What you type is never
+    sent anywhere and never saved.</p>
 
   <div class="split" style="margin-top:28px">
     <form id="form" autocomplete="off">
       <div class="field">
         <label for="text">What should the code contain?</label>
         <textarea id="text" data-primary rows="4" spellcheck="false">https://tools.jof.dev</textarea>
-        <p class="note" style="margin:8px 0 0">A web address, a phone number, a message — anything.</p>
       </div>
 
       <fieldset class="field">
@@ -69,8 +68,7 @@
           <button type="button" data-ecl="Q" aria-pressed="false">Strong</button>
           <button type="button" data-ecl="H" aria-pressed="false">Toughest</button>
         </div>
-        <p class="note" id="tough-note" style="margin:8px 0 0">Still readable with about 15% of it
-          scratched, smudged or covered.</p>
+        <p class="note" id="tough-note" style="margin:8px 0 0">Still scans with about 15% of it scratched or covered.</p>
       </fieldset>
 
       <div class="pair field">
@@ -83,8 +81,7 @@
           <input type="number" id="margin" value="4" min="0" max="16" step="1">
         </div>
       </div>
-      <p class="note" style="margin-top:-8px">Bigger dots make a bigger image. Keep the border at 4
-        or more, or some scanners will miss the code.</p>
+      <p class="note" style="margin-top:-8px">Bigger dots make a bigger image. Keep the border at 4 or more, or some scanners miss the code.</p>
     </form>
 
     <section class="out" aria-labelledby="result-h">
@@ -100,8 +97,7 @@
         <button type="button" id="svg">Download for printing</button>
         <button type="button" id="copy">Copy</button>
       </div>
-      <p class="note">Use <em>download for printing</em> if it is going on a poster or a sign — that
-        version stays sharp at any size.</p>
+      <p class="note">Choose <em>download for printing</em> for a poster or a sign. It stays sharp at any size.</p>
 
       <details>
         <summary>Technical details</summary>
@@ -118,8 +114,8 @@
 
   <div class="savebar" style="margin-top:32px">
     <button type="button" id="save">Save this tool</button>
-    <p class="hint">Keep your own copy. It is one file that works with no internet, forever —
-      even if this website disappears. Or press <kbd id="savekey">⌘ S</kbd>.</p>
+    <p class="hint">Keep your own copy. One file that works with no internet, forever, even if this
+      website disappears. Or press <kbd id="savekey">⌘ S</kbd>.</p>
   </div>
 </main>
 
@@ -472,10 +468,10 @@ var QR = (function () {
   var ecl = "M", current = null, timer = null;
 
   var TOUGH = {
-    L: "Still readable with about 7% of it scratched, smudged or covered. Makes the smallest code.",
-    M: "Still readable with about 15% of it scratched, smudged or covered.",
-    Q: "Still readable with about 25% of it scratched, smudged or covered.",
-    H: "Still readable with about 30% of it covered. Best for printing, or for putting a logo in the middle."
+    L: "Still scans with about 7% of it scratched or covered. Makes the smallest code.",
+    M: "Still scans with about 15% of it scratched or covered.",
+    Q: "Still scans with about 25% of it scratched or covered.",
+    H: "Still scans with about 30% of it covered. Best for printing, or for a logo in the middle."
   };
   var MODE = { numeric: "numbers only", alnum: "letters and numbers", byte: "any text (UTF-8)" };
 

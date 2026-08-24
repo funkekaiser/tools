@@ -79,17 +79,17 @@ ${safe(js)}</script>
 <body>
 
 <header class="topbar">
-  <div class="crumb">tools</div>
+  <div class="crumb"><strong>tools</strong><span class="dom">.jof.dev</span></div>
   <div class="spacer"></div>
   <div class="tagline">${esc(TAGLINE)}</div>
 </header>
 
 <main>
   <h1>Tools that do one thing</h1>
-  <p class="lede">The everyday little utilities you search for and then have to fight through ads to
-    use. These ones are free, and they always will be. <strong>Everything happens on your own
-    device</strong> — nothing you type is sent anywhere, and nothing about you is recorded.
-    Every tool can be saved to your computer and used with no internet at all.</p>
+  <p class="lede">The everyday utilities you search for and then have to fight through ads to use.
+    These are free, and always will be. <strong>Everything happens on your own device.</strong>
+    Nothing you type is sent anywhere, and nothing about you is recorded. Save any tool to your
+    computer and it keeps working with no internet.</p>
 
   <div style="margin:28px 0 16px">
     <label for="q">Search</label>
