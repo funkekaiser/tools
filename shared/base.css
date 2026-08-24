@@ -61,6 +61,10 @@ body {
 body > * { width: 100%; max-width: var(--max); margin-inline: auto; }
 main { flex: 1; }
 
+/* A page that is mostly text gets a narrower column, so the intro spans the
+   full width of the page without the lines becoming too long to read. */
+body.reading { --max: 38rem; }
+
 /* ---------- header ---------- */
 
 .topbar {
@@ -85,7 +89,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 10px; text-wrap: balance; }
 /* pretty stops a paragraph ending on a single stranded word */
 p, li, .hint, .note { text-wrap: pretty; }
 p { margin: 0 0 12px; }
-.lede { color: var(--dim); margin: 0; max-width: 62ch; }
+.lede { color: var(--dim); margin: 0; }
 .lede strong { color: var(--ink); font-weight: 600; }
 
 a { color: var(--acc); text-underline-offset: 3px; }
