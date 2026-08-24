@@ -1,0 +1,6 @@
+# Pages build command: node scripts/build-index.mjs
+# Output directory: repo root
+
+name = "tools"
+pages_build_output_dir = "."
+compatibility_date = "2026-08-24"
