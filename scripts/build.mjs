@@ -89,10 +89,15 @@ ${safe(js)}</script>
 
 <main>
   <h1>Tools that do one thing</h1>
-  <p class="lede">The everyday utilities you search for and then have to fight through ads to use.
-    These are free, and always will be. <strong>Everything happens on your own device.</strong>
-    Nothing you type is sent anywhere, and nothing about you is recorded. Save any tool to your
-    computer and it keeps working with no internet.</p>
+  <p class="lede">The everyday utilities you search for and then have to fight through ads to use.</p>
+
+  <ul class="points">
+    <li><b>Free forever</b>No ads, no accounts, no upsell, nothing to sign up for.</li>
+    <li><b>Nothing leaves your device</b>Whatever you type stays in your browser. None of it is
+      sent anywhere, and nothing about you is recorded.</li>
+    <li><b>Yours to keep</b>Save any tool to your computer in one click. It keeps working with no
+      internet at all.</li>
+  </ul>
 
   <div style="margin:28px 0 16px">
     <label for="q">Search</label>
@@ -107,10 +112,12 @@ ${cards}
 </main>
 
 <footer class="foot">
-  <span>Free and open source.</span>
-  <span class="spacer"></span>
-  <button type="button" id="theme" hidden>Theme</button>
-  <a href="https://github.com/funkekaiser/tools">Source code</a>
+  <div class="links">
+    <span>Free and open source.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+    <a href="https://github.com/funkekaiser/tools">Source code</a>
+  </div>
 </footer>
 
 <script>

@@ -91,6 +91,15 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 10px; text-wrap: balance; }
 p, li, .hint, .note { text-wrap: pretty; }
 p { margin: 0 0 12px; }
 .lede { color: var(--dim); margin: 0; }
+
+/* Separate claims read better as separate things than as one dense paragraph.
+   No border or background: these must not look clickable next to the tool cards. */
+.points { list-style: none; margin: 24px 0 0; padding: 0; display: grid; gap: 16px 22px;
+          grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.points li { border-top: 1px solid var(--line); padding-top: 10px;
+             color: var(--dim); font-size: 14.5px; line-height: 1.5; }
+.points b { display: block; color: var(--ink); font-weight: 650; margin-bottom: 3px;
+            font-size: 15px; }
 .lede strong { color: var(--ink); font-weight: 600; }
 
 a { color: var(--acc); text-underline-offset: 3px; }
@@ -193,10 +202,12 @@ kbd {
   color: var(--dim);
   font-size: 14px;
   display: flex;
-  gap: 8px 18px;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  gap: 10px;
 }
+/* The privacy promise lives down here, out of the way of the tool itself. */
+.foot .promise { margin: 0; max-width: 64ch; }
+.foot .links { display: flex; gap: 8px 18px; flex-wrap: wrap; align-items: center; }
 .foot a { color: var(--dim); }
 .foot a:hover { color: var(--acc); }
 #theme { font-size: 14px; padding: 4px 10px; color: var(--dim); }

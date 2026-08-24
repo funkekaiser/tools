@@ -81,6 +81,10 @@ These choices are settled and recorded so they are not quietly undone later.
   requires the `<h1>` text to be identical to the tool's `title` in its metadata block,
   otherwise the morph reads as two different things crossfading. Browsers without support
   just navigate normally. Disabled under `prefers-reduced-motion`.
+- **A tool page is about the tool.** The site's promises — no ads, nothing uploaded, free
+  forever — belong on the front page and in the footer, not in the header and intro of every
+  tool. Say it once, put it out of the way, and give the space back to the thing the visitor
+  came to use.
 - **Jargon goes behind a "Technical details" toggle.** The main interface uses plain words;
   the exact version, mask and mode stay available for people who want them, collapsed by
   default.
