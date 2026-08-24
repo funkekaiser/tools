@@ -1,6 +1,0 @@
-{
-  "title": "qr",
-  "blurb": "QR code generator. Encodes in the page, downloads as PNG or SVG.",
-  "tags": ["encode", "image", "offline"],
-  "keywords": ["qr code", "qrcode", "barcode", "generator", "png", "svg", "vcard", "wifi", "url", "error correction", "iso 18004"]
-}
