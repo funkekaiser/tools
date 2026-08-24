@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build index
+        run: node scripts/build-index.mjs
+
+      - name: Check size budget
+        run: node scripts/check-size.mjs
+
+      - name: Test the qr encoder
+        run: node scripts/test-qr.mjs
+
+      - name: Verify generated files are committed
+        run: |
+          if ! git diff --quiet; then
+            echo "::error::Generated output is stale. Run 'node scripts/build-index.mjs' and commit the result."
+            git diff --stat
+            exit 1
+          fi
