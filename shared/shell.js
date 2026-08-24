@@ -95,7 +95,50 @@
     tipFor = null;
   }
 
+  /* On a touch screen there is no hover, so print the explanations onto the
+     page instead. A group marked data-tip-anchor gets one line that follows
+     whichever option is selected, rather than one line per button. */
+  function inlineTips() {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tip-anchor]"), function (group) {
+      var line = document.createElement("p");
+      line.className = "tip-inline";
+      var update = function () {
+        var on = group.querySelector('[aria-pressed="true"][data-tip]') || group.querySelector("[data-tip]");
+        line.textContent = on ? on.getAttribute("data-tip") : "";
+      };
+      group.addEventListener("click", function () { setTimeout(update, 0); });
+      update();
+      group.parentNode.insertBefore(line, group.nextSibling);
+    });
+
+    // Lines go after the element, unless it sits in a row — a paragraph dropped
+    // into a flex row becomes another item in that row. Then they go after the
+    // whole row, in order, each named so it is clear which control it describes.
+    var tail = new Map();
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tip]"), function (el) {
+      if (el.closest("[data-tip-anchor]")) return;
+      var parent = el.parentNode;
+      var inRow = window.getComputedStyle(parent).display.indexOf("flex") > -1;
+      var host = inRow ? parent : el;
+      var name = (el.textContent || "").trim();
+
+      var line = document.createElement("p");
+      line.className = "tip-inline";
+      line.textContent = inRow && name
+        ? name + " — " + el.getAttribute("data-tip")
+        : el.getAttribute("data-tip");
+
+      var ref = tail.get(host) || host;
+      ref.parentNode.insertBefore(line, ref.nextSibling);
+      tail.set(host, line);
+    });
+  }
+
   function wireTips() {
+    if (window.matchMedia && window.matchMedia("(hover: none)").matches) {
+      inlineTips();
+      return;
+    }
     Array.prototype.forEach.call(document.querySelectorAll("[data-tip]"), function (el) {
       el.addEventListener("mouseenter", function () { showTip(el); });
       el.addEventListener("focus", function () { showTip(el); });

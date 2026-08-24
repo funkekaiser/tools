@@ -1,6 +1,11 @@
 /* tools — shared styles. The build inlines this into every tool, so a saved
    page carries its own look with it. Only system fonts: nothing is downloaded. */
 
+/* Animate navigation between pages. A tool's heading and its card on the front
+   page share a view-transition-name, so the title travels between them.
+   Browsers without support simply navigate, losing nothing. */
+@view-transition { navigation: auto; }
+
 :root {
   color-scheme: light dark;
 
@@ -207,6 +212,10 @@ kbd {
 }
 .tip.on { opacity: 1; }
 
+/* Where there is no mouse there is no hover, so the same explanations are
+   printed onto the page instead. Never hide anything behind hover alone. */
+.tip-inline { margin: 8px 0 0; color: var(--dim); font-size: 13.5px; line-height: 1.45; }
+
 .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
       overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
@@ -216,4 +225,7 @@ kbd {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) { animation: none !important; }
 }

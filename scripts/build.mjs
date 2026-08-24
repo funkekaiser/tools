@@ -56,10 +56,13 @@ for (const file of readdirSync(join(root, "tools")).sort()) {
   tools.push({ slug, ...meta });
 }
 
+// Must match the view-transition-name on the tool page's own heading.
+const vtName = (slug) => "tool-" + slug.replace(/[^a-z0-9]+/gi, "-");
+
 const cards = tools.map((t) => `      <li data-k="${
   esc([t.title, t.blurb, ...t.tags, ...t.keywords].join(" ").toLowerCase())}">
         <a href="${esc(t.slug)}/">
-          <div class="t">${esc(t.title)}</div>
+          <div class="t" style="view-transition-name:${vtName(t.slug)}">${esc(t.title)}</div>
           <div class="b">${esc(t.blurb)}</div>
         </a>
       </li>`).join("\n");
