@@ -1,4 +1,4 @@
-/* Verifies the QR encoder that ships inside tools/qr/index.html.
+/* Verifies the QR encoder that ships inside tools/qr.html.
    The encoder source is lifted straight out of the page, so this checks the
    code that users actually run, not a copy of it. Node built-ins only. */
 
@@ -7,12 +7,12 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const page = readFileSync(join(root, 'tools', 'qr', 'index.html'), 'utf8');
+const page = readFileSync(join(root, 'tools', 'qr.html'), 'utf8');
 
 const start = page.indexOf('var QR = (function () {');
 const end = page.indexOf('\n})();', start);
 if (start < 0 || end < 0) {
-  console.error('could not find the QR encoder in tools/qr/index.html');
+  console.error('could not find the QR encoder in tools/qr.html');
   process.exit(1);
 }
 // The page exports only encode(); the tests need the internals too.

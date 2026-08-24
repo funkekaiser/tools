@@ -1,6 +1,6 @@
-# Pages build command: node scripts/build-index.mjs
-# Output directory: repo root
+# Cloudflare Pages: build command is `node scripts/build.mjs`,
+# and the built site it serves is dist/.
 
 name = "tools"
-pages_build_output_dir = "."
+pages_build_output_dir = "dist"
 compatibility_date = "2026-08-24"
