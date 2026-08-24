@@ -61,10 +61,6 @@ body {
 body > * { width: 100%; max-width: var(--max); margin-inline: auto; }
 main { flex: 1; }
 
-/* A page that is mostly text gets a narrower column, so the intro spans the
-   full width of the page without the lines becoming too long to read. */
-body.reading { --max: 38rem; }
-
 /* ---------- header ---------- */
 
 .topbar {
@@ -199,6 +195,17 @@ kbd {
 .foot a { color: var(--dim); }
 .foot a:hover { color: var(--acc); }
 #theme { font-size: 14px; padding: 4px 10px; color: var(--dim); }
+
+/* Tooltips. One element, moved around and filled in by shell.js. Explanations
+   live in here rather than on the page, so the interface stays uncluttered. */
+.tip {
+  position: fixed; z-index: 20; max-width: min(280px, 80vw);
+  background: var(--ink); color: var(--bg);
+  font-size: 13.5px; line-height: 1.45; padding: 8px 11px; border-radius: 6px;
+  pointer-events: none; opacity: 0; transition: opacity .12s;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+}
+.tip.on { opacity: 1; }
 
 .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
       overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

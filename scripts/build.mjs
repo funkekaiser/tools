@@ -76,7 +76,7 @@ ${safe(css)}</style>
 <script>
 ${safe(js)}</script>
 </head>
-<body class="reading">
+<body>
 
 <header class="topbar">
   <div class="crumb"><strong>tools</strong><span class="dom">.jof.dev</span></div>

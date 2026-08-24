@@ -58,6 +58,54 @@
     }, 1600);
   }
 
+  /* ---- tooltips: hover or keyboard focus, one shared element ---- */
+
+  var tip = null, tipFor = null;
+
+  function showTip(el) {
+    var text = el.getAttribute("data-tip");
+    if (!text) return;
+    if (!tip) {
+      tip = document.createElement("div");
+      tip.className = "tip";
+      tip.id = "tooltip";
+      tip.setAttribute("role", "tooltip");
+      document.body.appendChild(tip);
+    }
+    tip.textContent = text;
+    tip.style.left = "0px";
+    tip.style.top = "0px";
+    tip.classList.add("on");
+    el.setAttribute("aria-describedby", "tooltip");
+    tipFor = el;
+
+    var anchor = el.getBoundingClientRect();
+    var box = tip.getBoundingClientRect();
+    var left = anchor.left + anchor.width / 2 - box.width / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - box.width - 8));
+    var top = anchor.top - box.height - 8;
+    if (top < 8) top = anchor.bottom + 8;
+    tip.style.left = Math.round(left) + "px";
+    tip.style.top = Math.round(top) + "px";
+  }
+
+  function hideTip() {
+    if (tip) tip.classList.remove("on");
+    if (tipFor) tipFor.removeAttribute("aria-describedby");
+    tipFor = null;
+  }
+
+  function wireTips() {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tip]"), function (el) {
+      el.addEventListener("mouseenter", function () { showTip(el); });
+      el.addEventListener("focus", function () { showTip(el); });
+      el.addEventListener("mouseleave", hideTip);
+      el.addEventListener("blur", hideTip);
+    });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") hideTip(); });
+    window.addEventListener("scroll", hideTip, true);
+  }
+
   function init() {
     source = "<!DOCTYPE html>\n" + root.outerHTML;
 
@@ -81,6 +129,8 @@
 
     var btn = document.getElementById("save");
     if (btn) btn.addEventListener("click", function () { save(btn); });
+
+    wireTips();
 
     var focusTarget = document.querySelector("[data-primary]");
     if (focusTarget) {

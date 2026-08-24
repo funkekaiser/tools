@@ -63,25 +63,29 @@
       <fieldset class="field">
         <legend class="label" id="tough-label">How tough should it be?</legend>
         <div class="seg" role="group" aria-labelledby="tough-label">
-          <button type="button" data-ecl="L" aria-pressed="false">Basic</button>
-          <button type="button" data-ecl="M" aria-pressed="true">Normal</button>
-          <button type="button" data-ecl="Q" aria-pressed="false">Strong</button>
-          <button type="button" data-ecl="H" aria-pressed="false">Toughest</button>
+          <button type="button" data-ecl="L" aria-pressed="false"
+            data-tip="Still scans with about 7% of it scratched or covered. Makes the smallest code.">Basic</button>
+          <button type="button" data-ecl="M" aria-pressed="true"
+            data-tip="Still scans with about 15% of it scratched or covered.">Normal</button>
+          <button type="button" data-ecl="Q" aria-pressed="false"
+            data-tip="Still scans with about 25% of it scratched or covered.">Strong</button>
+          <button type="button" data-ecl="H" aria-pressed="false"
+            data-tip="Still scans with about 30% of it covered. Best for printing, or for a logo in the middle.">Toughest</button>
         </div>
-        <p class="note" id="tough-note" style="margin:8px 0 0">Still scans with about 15% of it scratched or covered.</p>
       </fieldset>
 
       <div class="pair field">
         <div>
           <label for="scale">Dot size</label>
-          <input type="number" id="scale" value="8" min="1" max="40" step="1">
+          <input type="number" id="scale" value="8" min="1" max="40" step="1"
+            data-tip="How many pixels wide each little square is. Bigger dots make a bigger image.">
         </div>
         <div>
           <label for="margin">White border</label>
-          <input type="number" id="margin" value="4" min="0" max="16" step="1">
+          <input type="number" id="margin" value="4" min="0" max="16" step="1"
+            data-tip="The blank margin around the code. Keep it at 4 or more, or some scanners miss it.">
         </div>
       </div>
-      <p class="note" style="margin-top:-8px">Bigger dots make a bigger image. Keep the border at 4 or more, or some scanners miss the code.</p>
     </form>
 
     <section class="out" aria-labelledby="result-h">
@@ -93,11 +97,13 @@
       <p class="room" id="room" aria-live="polite"></p>
 
       <div class="actions">
-        <button type="button" id="png">Download image</button>
-        <button type="button" id="svg">Download for printing</button>
-        <button type="button" id="copy">Copy</button>
+        <button type="button" id="png"
+          data-tip="A normal image file. Good for messages, websites and anything on a screen.">Download PNG</button>
+        <button type="button" id="svg"
+          data-tip="Stays perfectly sharp at any size. Use it for posters, signs and anything printed.">Download SVG</button>
+        <button type="button" id="copy"
+          data-tip="Copies the code to your clipboard, ready to paste.">Copy</button>
       </div>
-      <p class="note">Choose <em>download for printing</em> for a poster or a sign. It stays sharp at any size.</p>
 
       <details>
         <summary>Technical details</summary>
@@ -113,9 +119,9 @@
   </div>
 
   <div class="savebar" style="margin-top:32px">
-    <button type="button" id="save">Save this tool</button>
-    <p class="hint">Keep your own copy. One file that works with no internet, forever, even if this
-      website disappears. Or press <kbd id="savekey">⌘ S</kbd>.</p>
+    <button type="button" id="save"
+      data-tip="Downloads this whole tool as one file. It works with no internet, forever, even if this website disappears.">Save this tool</button>
+    <p class="hint">Keep your own copy — or press <kbd id="savekey">⌘ S</kbd>.</p>
   </div>
 </main>
 
@@ -467,12 +473,6 @@ var QR = (function () {
   var canvas = $("canvas"), ctx = canvas.getContext("2d"), errEl = $("error");
   var ecl = "M", current = null, timer = null;
 
-  var TOUGH = {
-    L: "Still scans with about 7% of it scratched or covered. Makes the smallest code.",
-    M: "Still scans with about 15% of it scratched or covered.",
-    Q: "Still scans with about 25% of it scratched or covered.",
-    H: "Still scans with about 30% of it covered. Best for printing, or for a logo in the middle."
-  };
   var MODE = { numeric: "numbers only", alnum: "letters and numbers", byte: "any text (UTF-8)" };
 
   function render() {
@@ -596,7 +596,6 @@ var QR = (function () {
       Array.prototype.forEach.call(document.querySelectorAll("[data-ecl]"), function (b) {
         b.setAttribute("aria-pressed", String(b === btn));
       });
-      $("tough-note").textContent = TOUGH[ecl];
       render();
     });
   });
