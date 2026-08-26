@@ -4,15 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>QR code maker</title>
-<meta name="description" content="Make a QR code from a link or any text. Free, no ads, no tracking, nothing uploaded.">
+<meta name="description" content="Make a QR code that opens a link, joins a Wi-Fi network, saves a contact, starts an email or fills in a bank transfer. Free, no ads, no tracking, nothing uploaded.">
 <link rel="stylesheet" href="../shared/base.css">
 <script src="../shared/shell.js"></script>
 <script type="application/json" id="tool">
 {
   "title": "QR code maker",
-  "blurb": "Turn a link, a Wi-Fi password, or any text into a QR code that any phone camera can read.",
+  "blurb": "A QR code that joins a Wi-Fi network, saves a contact, opens a link, fills in a bank transfer \u2014 or just holds your text.",
   "tags": ["qr code", "images"],
-  "keywords": ["qr", "qrcode", "barcode", "scan", "generator", "png", "svg", "wifi", "url", "link", "print", "vcard"]
+  "keywords": ["qr", "qrcode", "barcode", "scan", "generator", "png", "svg", "print",
+    "wifi", "wi-fi", "network", "password", "url", "link", "website",
+    "vcard", "contact", "business card", "address book",
+    "email", "mailto", "sms", "text message", "phone", "tel", "call",
+    "sepa", "iban", "bic", "epc", "giro", "scan to pay", "bank transfer", "invoice", "payment",
+    "calendar", "event", "vevent", "ics", "appointment",
+    "location", "geo", "map", "coordinates"]
 }
 </script>
 <style>
@@ -37,6 +43,16 @@
            font-size: 14px; font-family: var(--mono); }
   .facts dt { color: var(--dim); }
   .facts dd { margin: 0; }
+
+  .check { display: flex; align-items: center; gap: 9px; }
+  .check label { margin: 0; font-weight: 400; }
+  /* base.css sizes the text controls; the date and time pickers match them. */
+  input[type="date"], input[type="time"] {
+    width: 100%; font: inherit; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 7px; padding: 9px 12px;
+  }
+  .raw { margin: 12px 0 0; }
+  .raw textarea { min-height: 76px; }
 </style>
 </head>
 <body>
@@ -48,12 +64,303 @@
 
 <main>
   <h1 style="view-transition-name:tool-qr">QR code maker</h1>
-  <p class="lede">Type a link, a Wi-Fi password, or any text at all. A QR code will appear on the right, ready to scan or download.</p>
+  <p class="lede">Pick what the code should do — open a link, join a Wi-Fi network, save a contact,
+    start an email or a text, fill in a bank transfer, add a date to a calendar, point at a place on
+    a map, or just hold plain text. It appears on the right, ready to scan or download.</p>
   <div class="split" style="margin-top:28px">
     <form id="form" autocomplete="off">
       <div class="field">
-        <label for="text">What should the code contain?</label>
-        <textarea id="text" data-primary rows="4" spellcheck="false">https://tools.jof.dev</textarea>
+        <label for="kind">What should the code do?</label>
+        <select id="kind" data-primary
+          data-tip="Choose what happens when someone scans it. The fields underneath change to match.">
+          <option value="link">Open a link</option>
+          <option value="text">Show some text</option>
+          <option value="wifi">Join a Wi-Fi network</option>
+          <option value="vcard">Save a contact</option>
+          <option value="email">Start an email</option>
+          <option value="sms">Start a text message</option>
+          <option value="tel">Call a phone number</option>
+          <option value="sepa">Pay by bank transfer (euro)</option>
+          <option value="event">Add a calendar event</option>
+          <option value="geo">Show a place on a map</option>
+        </select>
+      </div>
+
+      <!-- One block per kind. Hidden ones carry the hidden attribute, so they are
+           out of the tab order and out of the accessibility tree, not merely invisible. -->
+
+      <div data-pane="link">
+        <div class="field">
+          <label for="link-url">Web address</label>
+          <input type="text" id="link-url" spellcheck="false" value="https://tools.jof.dev"
+            data-tip="Where the code should take people, for example example.com/menu.">
+        </div>
+        <div class="check field">
+          <input type="checkbox" id="link-https" checked
+            data-tip="Phones need the https:// part to open a link. Leave this on and it is added for you.">
+          <label for="link-https">Put https:// in front if I leave it out</label>
+        </div>
+      </div>
+
+      <div data-pane="text" hidden>
+        <div class="field">
+          <label for="text">What should the code say?</label>
+          <textarea id="text" rows="4" spellcheck="false"
+            data-tip="Anything at all. Whoever scans it simply sees these words."></textarea>
+        </div>
+      </div>
+
+      <div data-pane="wifi" hidden>
+        <div class="field">
+          <label for="wifi-ssid">Network name (SSID)</label>
+          <input type="text" id="wifi-ssid" spellcheck="false"
+            data-tip="Exactly as it appears in the Wi-Fi list, capital letters and all.">
+        </div>
+        <fieldset class="field">
+          <legend class="label" id="wifi-sec-label">How is it protected?</legend>
+          <div class="seg" role="group" aria-labelledby="wifi-sec-label" data-tip-anchor>
+            <button type="button" data-sec="WPA" aria-pressed="true"
+              data-tip="The normal choice. WPA, WPA2 and WPA3 networks all use this.">Password</button>
+            <button type="button" data-sec="WEP" aria-pressed="false"
+              data-tip="Only for very old routers. WEP has not been safe for years.">WEP</button>
+            <button type="button" data-sec="nopass" aria-pressed="false"
+              data-tip="An open network that anyone can join without a password.">None</button>
+          </div>
+        </fieldset>
+        <div class="field" id="wifi-pass-row">
+          <label for="wifi-pass">Password</label>
+          <input type="text" id="wifi-pass" spellcheck="false"
+            data-tip="Shown as you type so you can check it. It never leaves this device.">
+        </div>
+        <div class="check field">
+          <input type="checkbox" id="wifi-hidden"
+            data-tip="Tick this only if the network does not appear in the Wi-Fi list until you type its name.">
+          <label for="wifi-hidden">The network is hidden</label>
+        </div>
+      </div>
+
+      <div data-pane="vcard" hidden>
+        <div class="pair field">
+          <div>
+            <label for="vc-first">First name</label>
+            <input type="text" id="vc-first">
+          </div>
+          <div>
+            <label for="vc-last">Last name</label>
+            <input type="text" id="vc-last">
+          </div>
+        </div>
+        <div class="pair field">
+          <div>
+            <label for="vc-org">Company</label>
+            <input type="text" id="vc-org">
+          </div>
+          <div>
+            <label for="vc-title">Job title</label>
+            <input type="text" id="vc-title">
+          </div>
+        </div>
+        <div class="pair field">
+          <div>
+            <label for="vc-phone">Phone</label>
+            <input type="text" id="vc-phone" spellcheck="false">
+          </div>
+          <div>
+            <label for="vc-mobile">Mobile</label>
+            <input type="text" id="vc-mobile" spellcheck="false">
+          </div>
+        </div>
+        <div class="pair field">
+          <div>
+            <label for="vc-email">Email</label>
+            <input type="text" id="vc-email" spellcheck="false">
+          </div>
+          <div>
+            <label for="vc-url">Website</label>
+            <input type="text" id="vc-url" spellcheck="false">
+          </div>
+        </div>
+        <div class="field">
+          <label for="vc-street">Street and number</label>
+          <input type="text" id="vc-street"
+            data-tip="Leave the address fields empty and no address is stored at all.">
+        </div>
+        <div class="pair field">
+          <div>
+            <label for="vc-zip">Postcode</label>
+            <input type="text" id="vc-zip" spellcheck="false">
+          </div>
+          <div>
+            <label for="vc-city">Town or city</label>
+            <input type="text" id="vc-city">
+          </div>
+        </div>
+        <div class="pair field">
+          <div>
+            <label for="vc-country">Country</label>
+            <input type="text" id="vc-country">
+          </div>
+          <div>
+            <label for="vc-note">Note</label>
+            <input type="text" id="vc-note"
+              data-tip="Anything else worth keeping — “met at the spring fair”.">
+          </div>
+        </div>
+      </div>
+
+      <div data-pane="email" hidden>
+        <div class="field">
+          <label for="em-to">Send to</label>
+          <input type="text" id="em-to" spellcheck="false"
+            data-tip="Scanning opens a new message to this address. Nothing is sent until the person presses send.">
+        </div>
+        <div class="field">
+          <label for="em-subject">Subject</label>
+          <input type="text" id="em-subject">
+        </div>
+        <div class="field">
+          <label for="em-body">Message</label>
+          <textarea id="em-body" rows="3"
+            data-tip="Filled in for them, ready to change before sending."></textarea>
+        </div>
+      </div>
+
+      <div data-pane="sms" hidden>
+        <div class="field">
+          <label for="sms-number">Phone number</label>
+          <input type="text" id="sms-number" spellcheck="false"
+            data-tip="Best with the country code, like +43 660 1234567.">
+        </div>
+        <div class="field">
+          <label for="sms-message">Message</label>
+          <textarea id="sms-message" rows="3"
+            data-tip="Typed into the message for them. Leave it empty for an empty message."></textarea>
+        </div>
+      </div>
+
+      <div data-pane="tel" hidden>
+        <div class="field">
+          <label for="tel-number">Phone number</label>
+          <input type="text" id="tel-number" spellcheck="false"
+            data-tip="Scanning offers to call it. Best with the country code, like +43 660 1234567.">
+        </div>
+      </div>
+
+      <div data-pane="sepa" hidden>
+        <p class="note" style="margin-top:-4px">Many European banking apps can scan one of these to fill
+          in a transfer — not every app can. Euro payments only. If you are printing it, leave the
+          toughness below at Normal or higher.</p>
+        <div class="field">
+          <label for="sepa-name">Who is being paid</label>
+          <input type="text" id="sepa-name" maxlength="70"
+            data-tip="The account holder's name, exactly as the bank has it. Up to 70 characters.">
+        </div>
+        <div class="field">
+          <label for="sepa-iban">Account number (IBAN)</label>
+          <input type="text" id="sepa-iban" spellcheck="false"
+            data-tip="Spaces are fine — AT61 1904 3002 3457 3201. It is checked for typos as you type.">
+        </div>
+        <div class="pair field">
+          <div>
+            <label for="sepa-bic">Bank code (BIC)</label>
+            <input type="text" id="sepa-bic" spellcheck="false"
+              data-tip="Sometimes called the SWIFT code. Not needed for payments inside the euro area.">
+          </div>
+          <div>
+            <label for="sepa-amount">Amount in euros</label>
+            <input type="text" id="sepa-amount" inputmode="decimal"
+              data-tip="Leave it empty and whoever scans it types the amount themselves.">
+          </div>
+        </div>
+        <fieldset class="field">
+          <legend class="label" id="sepa-ref-label">What should the payment say?</legend>
+          <div class="seg" role="group" aria-labelledby="sepa-ref-label" data-tip-anchor>
+            <button type="button" data-ref="text" aria-pressed="true"
+              data-tip="A line in your own words, up to 140 characters — “Invoice 2026-04”.">A message</button>
+            <button type="button" data-ref="ref" aria-pressed="false"
+              data-tip="The reference number printed on a bill. Use this only if you were given one.">A reference number</button>
+          </div>
+        </fieldset>
+        <div class="field" id="sepa-text-row">
+          <label for="sepa-text">Message</label>
+          <input type="text" id="sepa-text" maxlength="140">
+        </div>
+        <div class="field" id="sepa-ref-row" hidden>
+          <label for="sepa-ref">Reference number</label>
+          <input type="text" id="sepa-ref" maxlength="35" spellcheck="false">
+        </div>
+        <div class="pair field">
+          <div>
+            <label for="sepa-purpose">Purpose code</label>
+            <input type="text" id="sepa-purpose" maxlength="4" spellcheck="false"
+              data-tip="A four-letter banking code such as GDDS for goods. Leave it empty unless you were given one.">
+          </div>
+          <div>
+            <label for="sepa-note">Note to the payer</label>
+            <input type="text" id="sepa-note" maxlength="70"
+              data-tip="Shown to whoever scans the code, before they confirm the payment.">
+          </div>
+        </div>
+      </div>
+
+      <div data-pane="event" hidden>
+        <div class="field">
+          <label for="ev-summary">What is it called?</label>
+          <input type="text" id="ev-summary">
+        </div>
+        <div class="field">
+          <label for="ev-loc">Where is it?</label>
+          <input type="text" id="ev-loc">
+        </div>
+        <div class="check field">
+          <input type="checkbox" id="ev-allday"
+            data-tip="For events with no particular time, like a birthday or a holiday.">
+          <label for="ev-allday">All day</label>
+        </div>
+        <div class="pair field">
+          <div>
+            <label for="ev-start-date">Starts</label>
+            <input type="date" id="ev-start-date">
+          </div>
+          <div id="ev-start-time-row">
+            <label for="ev-start-time">Starting time</label>
+            <input type="time" id="ev-start-time"
+              data-tip="The time on the calendar of whoever scans it — no time zone is stored.">
+          </div>
+        </div>
+        <div class="pair field">
+          <div>
+            <label for="ev-end-date">Ends</label>
+            <input type="date" id="ev-end-date"
+              data-tip="For an all-day event this is the last day, and it is included.">
+          </div>
+          <div id="ev-end-time-row">
+            <label for="ev-end-time">Ending time</label>
+            <input type="time" id="ev-end-time"
+              data-tip="Leave it empty and the event lasts an hour.">
+          </div>
+        </div>
+        <div class="field">
+          <label for="ev-desc">Details</label>
+          <textarea id="ev-desc" rows="3"></textarea>
+        </div>
+      </div>
+
+      <div data-pane="geo" hidden>
+        <p class="note" style="margin-top:-4px">In most map apps you can press and hold a spot to see
+          its two numbers, then copy them here.</p>
+        <div class="pair field">
+          <div>
+            <label for="geo-lat">Latitude</label>
+            <input type="text" id="geo-lat" inputmode="decimal" spellcheck="false"
+              data-tip="How far north or south, from -90 to 90. Vienna is 48.2082.">
+          </div>
+          <div>
+            <label for="geo-lon">Longitude</label>
+            <input type="text" id="geo-lon" inputmode="decimal" spellcheck="false"
+              data-tip="How far east or west, from -180 to 180. Vienna is 16.3738.">
+          </div>
+        </div>
       </div>
 
       <fieldset class="field">
@@ -103,6 +410,11 @@
 
       <details>
         <summary>Technical details</summary>
+        <div class="field raw">
+          <label for="raw">The exact text stored in this code</label>
+          <textarea id="raw" rows="4" readonly spellcheck="false"
+            data-tip="This is what a scanner reads. Everything you filled in above becomes these characters."></textarea>
+        </div>
         <dl class="facts">
           <dt>version</dt><dd id="s-ver">—</dd>
           <dt>grid</dt><dd id="s-size">—</dd>
@@ -464,23 +776,381 @@ var QR = (function () {
   return { encode: encode };
 })();
 
+/* =====================================================================
+   Payload builders — the strings that make a scanner do something.
+
+   A QR code only ever holds text. What turns it into "join this network"
+   or "pay this account" is the exact shape of that text, so each builder
+   below takes plain field values and returns the string a scanner
+   recognises, or throws an Error whose message is written to be read by
+   whoever typed the fields.
+
+   Formats: Wi-Fi (the Wi-Fi Alliance / ZXing convention), vCard 3.0
+   (RFC 2426), mailto: (RFC 6068), SMSTO: (ZXing), tel: (RFC 3966),
+   EPC069-12 version 002 giro codes, iCalendar VEVENT (RFC 5545) and
+   geo: (RFC 5870). Nothing here fetches anything.
+   ===================================================================== */
+var PAYLOAD = (function () {
+  "use strict";
+
+  function s(v) { return v == null ? "" : String(v).trim(); }
+  function raw(v) { return v == null ? "" : String(v); }
+  function fail(msg) { throw new Error(msg); }
+
+  // Length in bytes once encoded as UTF-8 — what the length limits count.
+  function bytes(str) {
+    var n = 0, c;
+    for (var i = 0; i < str.length; i++) {
+      c = str.codePointAt(i);
+      if (c > 0xffff) i++;
+      n += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+    }
+    return n;
+  }
+
+  /* ---------------------------------------------------------- link ---- */
+
+  function link(v) {
+    var t = s(v.url);
+    if (!t) fail("Type a web address, for example example.com/menu.");
+    if (/\s/.test(t)) fail("A web address cannot contain spaces — check for a typo.");
+    var scheme = /^[a-zA-Z][a-zA-Z0-9+.\-]*:/.test(t);
+    if (!scheme) {
+      if (v.https === false) fail("That address needs to start with https:// — or tick the box to add it.");
+      t = "https://" + t;
+    }
+    if (/^https?:/i.test(t)) {
+      var host = t.replace(/^[a-zA-Z][a-zA-Z0-9+.\-]*:\/\//, "").split(/[/?#]/)[0];
+      host = host.split("@").pop().replace(/:[0-9]*$/, "");
+      if (!host || (host.indexOf(".") < 0 && host.toLowerCase() !== "localhost"))
+        fail("That does not look like a web address — check for a typo.");
+    }
+    return t;
+  }
+
+  /* ---------------------------------------------------- plain text ---- */
+
+  function text(v) {
+    var t = raw(v.text);
+    if (!t.trim()) fail("Type something above to make a code.");
+    return t;
+  }
+
+  /* ---------------------------------------------------------- wifi ---- */
+
+  // Backslash, semicolon, comma, colon and double quote carry meaning in the
+  // Wi-Fi format, so each is escaped with a backslash.
+  function wifiEsc(t) { return String(t).replace(/([\\;,:"])/g, "\\$1"); }
+
+  function wifi(v) {
+    var ssid = s(v.ssid);
+    var pass = raw(v.pass);
+    var sec = v.security === "WEP" ? "WEP" : v.security === "nopass" ? "nopass" : "WPA";
+    if (!ssid) fail("Type the network name — it has to match the Wi-Fi list exactly.");
+    if (sec !== "nopass" && !pass) fail("Type the Wi-Fi password, or set the protection to None.");
+    var out = "WIFI:T:" + sec + ";S:" + wifiEsc(ssid) + ";";
+    if (sec !== "nopass") out += "P:" + wifiEsc(pass) + ";";
+    if (v.hidden) out += "H:true;";
+    return out + ";";
+  }
+
+  /* -------------------------------------------------- contact card ---- */
+
+  // vCard and iCalendar escape the same four things, in this order: the
+  // backslash first, or it would escape the escapes that follow it.
+  function vEsc(t) {
+    return String(t)
+      .replace(/\\/g, "\\\\")
+      .replace(/\r\n?|\n/g, "\\n")
+      .replace(/;/g, "\\;")
+      .replace(/,/g, "\\,");
+  }
+
+  function vcard(v) {
+    var first = s(v.first), last = s(v.last), org = s(v.org);
+    var fn = (first + " " + last).trim();
+    if (!fn && !org) fail("Fill in a name, or at least a company, for the contact card.");
+    var lines = ["BEGIN:VCARD", "VERSION:3.0"];
+    lines.push("N:" + [vEsc(last), vEsc(first), "", "", ""].join(";"));
+    lines.push("FN:" + vEsc(fn || org));
+    if (org) lines.push("ORG:" + vEsc(org));
+    if (s(v.title)) lines.push("TITLE:" + vEsc(s(v.title)));
+    if (s(v.phone)) lines.push("TEL;TYPE=WORK,VOICE:" + vEsc(s(v.phone)));
+    if (s(v.mobile)) lines.push("TEL;TYPE=CELL,VOICE:" + vEsc(s(v.mobile)));
+    if (s(v.email)) lines.push("EMAIL;TYPE=INTERNET:" + vEsc(s(v.email)));
+    if (s(v.url)) lines.push("URL:" + vEsc(s(v.url)));
+    if (s(v.street) || s(v.city) || s(v.zip) || s(v.country)) {
+      // post office box; extended address; street; town; region; postcode; country
+      lines.push("ADR;TYPE=WORK:;;" + [vEsc(s(v.street)), vEsc(s(v.city)), "",
+        vEsc(s(v.zip)), vEsc(s(v.country))].join(";"));
+    }
+    if (s(v.note)) lines.push("NOTE:" + vEsc(s(v.note)));
+    lines.push("END:VCARD");
+    return lines.join("\r\n");
+  }
+
+  /* --------------------------------------------------------- email ---- */
+
+  // encodeURIComponent leaves ! ' ( ) * alone; a mail client may read those
+  // as its own punctuation, so they are percent-encoded too.
+  function pct(t) {
+    return encodeURIComponent(t).replace(/[!'()*]/g, function (c) {
+      return "%" + c.charCodeAt(0).toString(16).toUpperCase();
+    });
+  }
+
+  function email(v) {
+    var to = s(v.to);
+    if (!to) fail("Type the address the email should go to.");
+    if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(to))
+      fail("That email address does not look right — check for a typo.");
+    var q = [];
+    if (s(v.subject)) q.push("subject=" + pct(s(v.subject)));
+    var body = raw(v.body);
+    if (body.trim()) q.push("body=" + pct(body.replace(/\r\n?|\n/g, "\r\n")));
+    return "mailto:" + to + (q.length ? "?" + q.join("&") : "");
+  }
+
+  /* -------------------------------------------- text message, call ---- */
+
+  function number(v) {
+    var t = s(v).replace(/[\s\-().]/g, "");
+    if (!t) fail("Type a phone number.");
+    if (!/^\+?[0-9]{3,20}$/.test(t))
+      fail("That phone number does not look right — digits only, with an optional + in front.");
+    return t;
+  }
+
+  function sms(v) { return "SMSTO:" + number(v.number) + ":" + raw(v.message); }
+  function tel(v) { return "tel:" + number(v.number); }
+
+  /* ------------------------------------------------ bank transfer ---- */
+
+  // Length of an IBAN by country, from the official IBAN registry. A country
+  // that is not listed is accepted at any registry-legal length, so a newly
+  // added one is not rejected out of hand; the check digits still have to add up.
+  var IBAN_LEN = {
+    AD: 24, AE: 23, AL: 28, AT: 20, AZ: 28, BA: 20, BE: 16, BG: 22, BH: 22, BI: 27,
+    BR: 29, BY: 28, CH: 21, CR: 22, CY: 28, CZ: 24, DE: 22, DJ: 27, DK: 18, DO: 22,
+    EE: 20, EG: 29, ES: 24, FI: 18, FK: 18, FO: 18, FR: 27, GB: 22, GE: 22, GI: 23,
+    GL: 18, GR: 27, GT: 28, HN: 28, HR: 21, HU: 28, IE: 22, IL: 23, IQ: 23, IS: 26,
+    IT: 27, JO: 30, KW: 30, KZ: 20, LB: 28, LC: 32, LI: 21, LT: 20, LU: 20, LV: 21,
+    LY: 25, MC: 27, MD: 24, ME: 22, MK: 19, MN: 20, MR: 27, MT: 31, MU: 30, NI: 28,
+    NL: 18, NO: 15, OM: 23, PK: 24, PL: 28, PS: 29, PT: 25, QA: 29, RO: 24, RS: 22,
+    RU: 33, SA: 24, SC: 31, SD: 18, SE: 24, SI: 19, SK: 24, SM: 27, SO: 23, ST: 25,
+    SV: 28, TL: 23, TN: 24, TR: 26, UA: 29, VA: 22, VG: 24, XK: 20, YE: 30
+  };
+
+  // The mod-97 check of ISO 7064: move the first four characters to the end,
+  // turn every letter into two digits (A is 10), and the remainder must be 1.
+  function ibanOk(value) {
+    var t = String(value == null ? "" : value).replace(/[\s\-]/g, "").toUpperCase();
+    if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(t)) return false;
+    var want = IBAN_LEN[t.slice(0, 2)];
+    if (want ? t.length !== want : t.length < 15 || t.length > 34) return false;
+    var moved = t.slice(4) + t.slice(0, 4), rem = 0;
+    for (var i = 0; i < moved.length; i++) {
+      var d = moved.charCodeAt(i);
+      d = d >= 65 ? d - 55 : d - 48;
+      rem = (d > 9 ? rem * 100 + d : rem * 10 + d) % 97;
+    }
+    return rem === 1;
+  }
+
+  function euros(value) {
+    var t = s(value).replace(/\s/g, "").replace(/^(EUR|€)/i, "").replace(",", ".");
+    if (!t) return "";
+    if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(t))
+      fail("Write the amount in digits, like 24.90 — two decimal places at most.");
+    var n = Number(t);
+    if (n < 0.01) fail("A payment code cannot be for nothing — the smallest amount is 0.01 euros.");
+    if (n > 999999999.99) fail("A payment code can hold at most 999999999.99 euros.");
+    return "EUR" + n.toFixed(2);
+  }
+
+  function sepa(v) {
+    var name = s(v.name);
+    if (!name) fail("Type the name of whoever is being paid.");
+    if (name.length > 70) fail("The name of who is being paid can be 70 characters at most.");
+    var iban = s(v.iban).replace(/[\s\-]/g, "").toUpperCase();
+    if (!iban) fail("Type the account number (IBAN) being paid.");
+    if (!ibanOk(iban)) fail("That IBAN does not look right — check for a typo.");
+    var bic = s(v.bic).replace(/\s/g, "").toUpperCase();
+    if (bic && !/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(bic))
+      fail("That bank code (BIC) does not look right — it is 8 or 11 letters and numbers.");
+    var amount = euros(v.amount);
+    var purpose = s(v.purpose).toUpperCase();
+    if (purpose && !/^[A-Z0-9]{1,4}$/.test(purpose))
+      fail("A purpose code is up to four letters or numbers.");
+    var ref = s(v.reference), note = s(v.text), payer = s(v.note);
+    if (ref && note) fail("A payment carries either a reference number or a message, not both.");
+    if (ref.length > 35) fail("A reference number can be 35 characters at most.");
+    if (note.length > 140) fail("The message can be 140 characters at most.");
+    if (payer.length > 70) fail("The note to the payer can be 70 characters at most.");
+
+    // EPC069-12, twelve lines separated by line feeds, in this order.
+    var out = ["BCD", "002", "1", "SCT", bic, name, iban, amount, purpose, ref, note, payer]
+      .join("\n");
+    if (bytes(out) > 331)
+      fail("That is more than a payment code can hold. Shorten the message, the name or the note.");
+    return out;
+  }
+
+  /* ------------------------------------------------ calendar event ---- */
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function day(t) { return t.slice(0, 4) + t.slice(5, 7) + t.slice(8, 10); }
+  function stamp(d) {
+    return String(d.getFullYear()) + pad(d.getMonth() + 1) + pad(d.getDate()) + "T" +
+      pad(d.getHours()) + pad(d.getMinutes()) + "00";
+  }
+  function at(date, time) {
+    return new Date(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10),
+      +time.slice(0, 2), +time.slice(3, 5));
+  }
+  var DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/, TIME = /^[0-9]{2}:[0-9]{2}/;
+
+  function event(v) {
+    var summary = s(v.summary);
+    if (!summary) fail("Give the event a name.");
+    var start = s(v.start), end = s(v.end);
+    if (!DATE.test(start)) fail("Pick the day the event starts.");
+    var lines = ["BEGIN:VEVENT", "SUMMARY:" + vEsc(summary)];
+    if (s(v.location)) lines.push("LOCATION:" + vEsc(s(v.location)));
+
+    if (v.allday) {
+      // A whole-day event ends on the morning after its last day: calendars
+      // read the end date as the first day that is no longer part of it.
+      var last = DATE.test(end) ? end : start;
+      if (last < start) fail("The event cannot end before it starts.");
+      var after = at(last, "00:00");
+      after.setDate(after.getDate() + 1);
+      lines.push("DTSTART;VALUE=DATE:" + day(start));
+      lines.push("DTEND;VALUE=DATE:" + stamp(after).slice(0, 8));
+    } else {
+      var startTime = s(v.startTime);
+      if (!TIME.test(startTime)) fail("Pick the time the event starts.");
+      var from = at(start, startTime);
+      var endTime = s(v.endTime), to;
+      if (TIME.test(endTime)) to = at(DATE.test(end) ? end : start, endTime);
+      else if (DATE.test(end) && end !== start) to = at(end, startTime);
+      else to = new Date(from.getTime() + 3600000);   // an hour, if no end is given
+      if (to < from) fail("The event cannot end before it starts.");
+      lines.push("DTSTART:" + stamp(from));
+      lines.push("DTEND:" + stamp(to));
+    }
+
+    if (s(v.description)) lines.push("DESCRIPTION:" + vEsc(s(v.description)));
+    lines.push("END:VEVENT");
+    return lines.join("\r\n");
+  }
+
+  /* ------------------------------------------------------ location ---- */
+
+  function coord(value, limit, what) {
+    var t = s(value).replace(",", ".");
+    if (!t) fail("Type the " + what + ".");
+    if (!/^[+-]?[0-9]+(\.[0-9]+)?$/.test(t))
+      fail("The " + what + " has to be a number, like 48.2082.");
+    var n = Number(t);
+    if (n < -limit || n > limit)
+      fail("The " + what + " has to be between -" + limit + " and " + limit + ".");
+    return String(n);
+  }
+
+  function geo(v) {
+    return "geo:" + coord(v.lat, 90, "latitude") + "," + coord(v.lon, 180, "longitude");
+  }
+
+  /* ---------------------------------------------------------------- */
+
+  var KINDS = {
+    link: link, text: text, wifi: wifi, vcard: vcard, email: email,
+    sms: sms, tel: tel, sepa: sepa, event: event, geo: geo
+  };
+
+  function build(kind, values) {
+    var fn = KINDS[kind];
+    if (!fn) fail("Choose what the code should do.");
+    return fn(values || {});
+  }
+
+  return {
+    build: build, bytes: bytes, ibanOk: ibanOk,
+    link: link, text: text, wifi: wifi, vcard: vcard, email: email,
+    sms: sms, tel: tel, sepa: sepa, event: event, geo: geo
+  };
+})();
+
 /* ---------------------------------------------------------------- page ---- */
 (function () {
   "use strict";
 
   var $ = function (id) { return document.getElementById(id); };
-  var textEl = $("text"), scaleEl = $("scale"), marginEl = $("margin");
+  var form = $("form"), kindEl = $("kind"), rawEl = $("raw");
+  var scaleEl = $("scale"), marginEl = $("margin");
   var canvas = $("canvas"), ctx = canvas.getContext("2d"), errEl = $("error");
   var ecl = "M", current = null, timer = null;
+  var wifiSec = "WPA";
 
   var MODE = { numeric: "numbers only", alnum: "letters and numbers", byte: "any text (UTF-8)" };
 
+  var panes = {};
+  Array.prototype.forEach.call(document.querySelectorAll("[data-pane]"), function (pane) {
+    panes[pane.getAttribute("data-pane")] = pane;
+  });
+
+  function val(id) { var el = $(id); return el ? el.value : ""; }
+  function ticked(id) { var el = $(id); return !!(el && el.checked); }
+
+  // What each kind reads off the page. Every field keeps its value while another
+  // kind is showing, because the blocks are only hidden, never emptied.
+  function values(kind) {
+    if (kind === "link") return { url: val("link-url"), https: ticked("link-https") };
+    if (kind === "text") return { text: val("text") };
+    if (kind === "wifi") return {
+      ssid: val("wifi-ssid"), pass: val("wifi-pass"),
+      security: wifiSec, hidden: ticked("wifi-hidden")
+    };
+    if (kind === "vcard") return {
+      first: val("vc-first"), last: val("vc-last"), org: val("vc-org"), title: val("vc-title"),
+      phone: val("vc-phone"), mobile: val("vc-mobile"), email: val("vc-email"), url: val("vc-url"),
+      street: val("vc-street"), zip: val("vc-zip"), city: val("vc-city"),
+      country: val("vc-country"), note: val("vc-note")
+    };
+    if (kind === "email") return { to: val("em-to"), subject: val("em-subject"), body: val("em-body") };
+    if (kind === "sms") return { number: val("sms-number"), message: val("sms-message") };
+    if (kind === "tel") return { number: val("tel-number") };
+    if (kind === "sepa") return {
+      name: val("sepa-name"), iban: val("sepa-iban"), bic: val("sepa-bic"),
+      amount: val("sepa-amount"), purpose: val("sepa-purpose"),
+      reference: $("sepa-ref-row").hidden ? "" : val("sepa-ref"),
+      text: $("sepa-text-row").hidden ? "" : val("sepa-text"),
+      note: val("sepa-note")
+    };
+    if (kind === "event") return {
+      summary: val("ev-summary"), location: val("ev-loc"), allday: ticked("ev-allday"),
+      start: val("ev-start-date"), startTime: val("ev-start-time"),
+      end: val("ev-end-date"), endTime: val("ev-end-time"),
+      description: val("ev-desc")
+    };
+    if (kind === "geo") return { lat: val("geo-lat"), lon: val("geo-lon") };
+    return {};
+  }
+
   function render() {
-    var text = textEl.value;
     var scale = Math.min(40, Math.max(1, parseInt(scaleEl.value, 10) || 8));
     var quiet = Math.min(16, Math.max(0, parseInt(marginEl.value, 10) || 0));
 
-    if (!text) { show(null, "Type something above to make a code."); return; }
+    var text;
+    try {
+      text = PAYLOAD.build(kindEl.value, values(kindEl.value));
+    } catch (e) {
+      rawEl.value = "";
+      show(null, e.message);
+      return;
+    }
+    rawEl.value = text;
 
     var res;
     try {
@@ -590,21 +1260,59 @@ var QR = (function () {
     }, "image/png");
   });
 
+  // One of a group of buttons is pressed; the rest are not.
+  function press(selector, chosen) {
+    Array.prototype.forEach.call(document.querySelectorAll(selector), function (b) {
+      b.setAttribute("aria-pressed", String(b === chosen));
+    });
+  }
+
   Array.prototype.forEach.call(document.querySelectorAll("[data-ecl]"), function (btn) {
     btn.addEventListener("click", function () {
       ecl = btn.getAttribute("data-ecl");
-      Array.prototype.forEach.call(document.querySelectorAll("[data-ecl]"), function (b) {
-        b.setAttribute("aria-pressed", String(b === btn));
-      });
+      press("[data-ecl]", btn);
       render();
     });
   });
 
+  Array.prototype.forEach.call(document.querySelectorAll("[data-sec]"), function (btn) {
+    btn.addEventListener("click", function () {
+      wifiSec = btn.getAttribute("data-sec");
+      press("[data-sec]", btn);
+      $("wifi-pass-row").hidden = wifiSec === "nopass";
+      render();
+    });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-ref]"), function (btn) {
+    btn.addEventListener("click", function () {
+      var wants = btn.getAttribute("data-ref");
+      press("[data-ref]", btn);
+      $("sepa-ref-row").hidden = wants !== "ref";
+      $("sepa-text-row").hidden = wants === "ref";
+      render();
+    });
+  });
+
+  // Hiding a block takes its fields out of the tab order and out of what a
+  // screen reader announces, which is the point of using the attribute.
+  function swap() {
+    var kind = kindEl.value;
+    Object.keys(panes).forEach(function (name) { panes[name].hidden = name !== kind; });
+    schedule();
+  }
+  kindEl.addEventListener("change", swap);
+
+  $("ev-allday").addEventListener("change", function () {
+    var all = $("ev-allday").checked;
+    $("ev-start-time-row").hidden = all;
+    $("ev-end-time-row").hidden = all;
+  });
+
   function schedule() { clearTimeout(timer); timer = setTimeout(render, 80); }
-  textEl.addEventListener("input", schedule);
-  scaleEl.addEventListener("input", schedule);
-  marginEl.addEventListener("input", schedule);
-  $("form").addEventListener("submit", function (e) { e.preventDefault(); render(); });
+  form.addEventListener("input", schedule);
+  form.addEventListener("change", schedule);
+  form.addEventListener("submit", function (e) { e.preventDefault(); render(); });
 
   render();
 })();

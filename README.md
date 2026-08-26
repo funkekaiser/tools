@@ -13,7 +13,7 @@ Live at **<https://tools.jof.dev>**
 
 | Tool | What it does |
 |---|---|
-| [QR code maker](https://tools.jof.dev/qr/) | Turn a link, a Wi-Fi password, or any text into a QR code. Download as an image or for printing. |
+| [QR code maker](https://tools.jof.dev/qr/) | A QR code that joins a Wi-Fi network, saves a contact, opens a link, starts an email, fills in a bank transfer — or just holds your text. Download as an image or for printing. |
 | [Password maker](https://tools.jof.dev/password/) | A strong password in short readable chunks, with an honest measure of how hard it is to guess. |
 
 More to come.
@@ -43,7 +43,7 @@ The rules the project holds itself to:
 
 ```sh
 node scripts/build.mjs                 # build dist/
-node scripts/test-qr.mjs               # verify the QR encoder
+node scripts/test-qr.mjs               # verify the encoder and the payload builders
 node scripts/test-password.mjs         # verify the password generator
 python3 -m http.server 8000 -d dist    # serve it, then open http://localhost:8000
 ```
