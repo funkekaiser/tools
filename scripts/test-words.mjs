@@ -129,7 +129,7 @@ eq(WC.sms('it\u2019s').odd, '\u2019', 'the character that forced UCS-2 is report
 eq(WC.sms('a\u00A0b').encoding, 'UCS-2', 'a non-breaking space is not in the GSM set');
 console.log(`text messages: ${M.length + 1} cases checked`);
 
-// ---- 5. X ----
+// ---- 5. Twitter ----
 const X = [
   ['', 0],
   ['a'.repeat(280), 280],
@@ -149,15 +149,15 @@ const X = [
   ['\u2014\u201C\u201D', 3],                       // dashes and quotes are in the light ranges
   ['\u3001', 2]
 ];
-for (const [s, want] of X) eq(WC.xLength(s), want, `X length of ${JSON.stringify(s)}`);
-console.log(`X: ${X.length} cases checked`);
+for (const [s, want] of X) eq(WC.xLength(s), want, `Twitter length of ${JSON.stringify(s)}`);
+console.log(`Twitter: ${X.length} cases checked`);
 
 // ---- 6. the limits and the words put on the numbers ----
 {
   const s = 'a'.repeat(170);
   const l = Object.fromEntries(WC.limits(s, WC.count(s)).map((x) => [x.id, x]));
   eq(l.sms.say, '2 texts', 'a 170-letter text is sent as two');
-  eq(l.x.say, 'Fits', '170 letters fit on X');
+  eq(l.x.say, 'Fits', '170 letters fit on Twitter');
   eq(l.title.say, '110 over', '170 letters are 110 over a search title');
   eq(l.desc.tone, 'bad', '170 letters are too long for a search description');
   eq(l.bsky.tone, 'ok', '170 letters fit on Bluesky');
@@ -166,7 +166,7 @@ console.log(`X: ${X.length} cases checked`);
   const s = '👍'.repeat(300);
   const l = Object.fromEntries(WC.limits(s, WC.count(s)).map((x) => [x.id, x]));
   eq(l.bsky.say, 'Fits', 'Bluesky counts 300 emoji as 300');
-  eq(l.x.say, '320 over', 'X counts 300 emoji as 600');
+  eq(l.x.say, '320 over', 'Twitter counts 300 emoji as 600');
 }
 const D = [[0, '—'], [0.2, 'under a minute'], [1, 'about 1 minute'], [4.4, 'about 4 minutes'],
   [59.4, 'about 59 minutes'], [59.6, 'about 1 hour'], [72, 'about 1 hour 10 minutes'], [150, 'about 2 hours 30 minutes']];
