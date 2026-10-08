@@ -134,6 +134,7 @@ scripts/build.mjs          tools/ -> dist/, and writes the front page
 scripts/test-qr.mjs        checks the QR encoder and the payload builders in tools/qr.html
 scripts/test-password.mjs  checks the generator inside tools/password.html
 scripts/test-screen.mjs    checks the test patterns inside tools/screen.html
+scripts/test-photo.mjs     checks the metadata stripping and size fitting in tools/photo.html
 .github/workflows/build-tool.yml   labelling an issue `build` has Claude build it as a PR
 dist/                      generated, gitignored, what Cloudflare serves
 drafts/                    unfinished experiments, not published
@@ -150,6 +151,7 @@ node scripts/build.mjs                 # build dist/
 node scripts/test-qr.mjs               # verify the encoder and the payload builders
 node scripts/test-password.mjs         # verify the password generator
 node scripts/test-screen.mjs           # verify the screen test patterns
+node scripts/test-photo.mjs            # verify the photo stripping and size fitting
 python3 -m http.server 8000 -d dist    # serve the built site
 ```
 
