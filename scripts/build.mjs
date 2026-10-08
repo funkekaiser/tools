@@ -42,7 +42,7 @@ const SEARCH_SCRIPT = `
 <script>
 (function () {
   var q = document.getElementById("q"), count = document.getElementById("count");
-  var items = Array.prototype.slice.call(document.querySelectorAll("#list li"));
+  var items = Array.prototype.slice.call(document.querySelectorAll("#list li[data-k]"));
   function run() {
     var v = q.value.trim().toLowerCase(), shown = 0;
     items.forEach(function (li) {
@@ -110,6 +110,15 @@ const cards = tools.map((t) => `      <li data-k="${
         </a>
       </li>`).join("\n");
 
+// The last card is not a tool: it asks for the next one. It stays put while searching,
+// since an empty result is exactly when it is useful.
+const SUGGEST = `      <li class="suggest">
+        <a href="https://github.com/funkekaiser/tools/issues/new">
+          <div class="t">Suggest a tool</div>
+          <div class="b">Something you keep searching for? Ask for it on GitHub.</div>
+        </a>
+      </li>`;
+
 const search = tools.length >= SEARCH_FROM;
 writeFileSync(join(dist, "index.html"), `<!DOCTYPE html>
 <html lang="en">
@@ -138,6 +147,7 @@ ${safe(js)}</script>
 ${search ? SEARCH : ""}
   <ul class="tools" id="list"${search ? "" : ' style="margin-top:28px"'}>
 ${cards}
+${SUGGEST}
   </ul>
 </main>
 
