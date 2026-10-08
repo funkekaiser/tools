@@ -50,7 +50,9 @@ jobs:
             - Do not edit anything under .github/. If you add scripts/test-<slug>.mjs, say in the
               pull request that ci.yml needs a line for it.
             - Do not merge into main. Push the branch and open a pull request with `gh pr create`
-              against main. Title it with the tool's title. In the body: one line on what the tool
+              against main. Title it with the tool's title. Start the body with the line
+              `Preview: https://<slug>.tools-58r.pages.dev/<slug>/` (Cloudflare Pages deploys
+              every branch there within a minute or two), then one line on what the tool
               does, the choices you made that the issue did not settle, anything you are unsure
               of, the things to check in a browser, and `Closes #${{ github.event.issue.number }}`.
             - End commit messages with:
