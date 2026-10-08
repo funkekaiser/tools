@@ -86,9 +86,10 @@ These choices are settled and recorded so they are not quietly undone later.
   does: not the intro of a tool, not a note beside its result, not a list of points on the
   front page. A three-point list there was tried and removed — it said what the tagline and
   footer already said, at four times the length. Give the space back to the tools.
-- **Every page ends with the same footer.** The privacy promise, "Free and open source.", the
-  theme button and the source link, in that order, byte-for-byte identical on the front page and
-  on every tool. Tool sources carry the markup themselves so they still open in a browser; the
+- **Every page ends with the same footer.** The privacy promise, then "Free and open source."
+  with *open source* as the link to the repository, then the theme button, byte-for-byte
+  identical on the front page and on every tool. A separate "Source code" link was there too and
+  went: it said open source twice on one line. Tool sources carry the markup themselves so they still open in a browser; the
   `FOOTER` constant in build.mjs is the copy the front page uses, and `template/tool.html` is the
   copy a new tool starts from. Nothing checks that they match — a build-time comparison was tried
   and removed as machinery for a rule nobody was breaking. Moving the header, save bar and footer
@@ -96,6 +97,9 @@ These choices are settled and recorded so they are not quietly undone later.
   assembling pages, and `tools/<slug>.html` would no longer be a whole page you can open. That
   independence is worth more than the repetition costs. Tool pages do not repeat an "All tools"
   link down there — the header crumb already goes home.
+- **The front page has no search box until it needs one.** build.mjs leaves the search out while
+  there are fewer than six tools: a labelled input and a count above three cards you can see at a
+  glance is apparatus. The markup and script are still there, waiting for the seventh tool.
 - **The template lives outside `tools/`.** `template/tool.html` is a real page, not a
   skeleton: it opens in a browser and runs, so the conventions can be seen working rather
   than described. It sits in its own directory because the build publishes everything in

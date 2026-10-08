@@ -21,12 +21,43 @@ const TAGLINE = "No ads. No tracking. Free forever.";
 const FOOTER = `<footer class="foot">
   <p class="promise">Everything happens on your device. Nothing you type is sent or saved anywhere.</p>
   <div class="links">
-    <span>Free and open source.</span>
+    <span>Free and <a href="https://github.com/funkekaiser/tools">open source</a>.</span>
     <span class="spacer"></span>
     <button type="button" id="theme" hidden>Theme</button>
-    <a href="https://github.com/funkekaiser/tools">Source code</a>
   </div>
 </footer>`;
+
+// Three cards need no search box. It appears once there are more tools than a glance
+// takes in, which is also when the "n of m" count starts meaning something.
+const SEARCH_FROM = 6;
+const SEARCH = `
+  <div style="margin:28px 0 16px">
+    <label for="q">Search</label>
+    <input type="text" id="q" data-primary spellcheck="false" placeholder="What do you need to do?"
+      aria-describedby="count">
+    <p class="note" id="count" aria-live="polite" style="margin:8px 0 0"></p>
+  </div>
+`;
+const SEARCH_SCRIPT = `
+<script>
+(function () {
+  var q = document.getElementById("q"), count = document.getElementById("count");
+  var items = Array.prototype.slice.call(document.querySelectorAll("#list li"));
+  function run() {
+    var v = q.value.trim().toLowerCase(), shown = 0;
+    items.forEach(function (li) {
+      var hit = !v || li.getAttribute("data-k").indexOf(v) > -1;
+      li.hidden = !hit;
+      if (hit) shown++;
+    });
+    count.textContent = shown === items.length
+      ? items.length + (items.length === 1 ? " tool" : " tools")
+      : shown + " of " + items.length;
+  }
+  q.addEventListener("input", run);
+  run();
+})();
+</script>`;
 
 const esc = (s) => String(s).replace(/[&<>"]/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -79,6 +110,7 @@ const cards = tools.map((t) => `      <li data-k="${
         </a>
       </li>`).join("\n");
 
+const search = tools.length >= SEARCH_FROM;
 writeFileSync(join(dist, "index.html"), `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -103,39 +135,14 @@ ${safe(js)}</script>
   <h1>Tools that do one thing</h1>
   <p class="lede">The everyday utilities you search for and then have to fight through ads to use.</p>
 
-  <div style="margin:28px 0 16px">
-    <label for="q">Search</label>
-    <input type="text" id="q" data-primary spellcheck="false" placeholder="What do you need to do?"
-      aria-describedby="count">
-    <p class="note" id="count" aria-live="polite" style="margin:8px 0 0"></p>
-  </div>
-
-  <ul class="tools" id="list">
+${search ? SEARCH : ""}
+  <ul class="tools" id="list"${search ? "" : ' style="margin-top:28px"'}>
 ${cards}
   </ul>
 </main>
 
 ${FOOTER}
-
-<script>
-(function () {
-  var q = document.getElementById("q"), count = document.getElementById("count");
-  var items = Array.prototype.slice.call(document.querySelectorAll("#list li"));
-  function run() {
-    var v = q.value.trim().toLowerCase(), shown = 0;
-    items.forEach(function (li) {
-      var hit = !v || li.getAttribute("data-k").indexOf(v) > -1;
-      li.hidden = !hit;
-      if (hit) shown++;
-    });
-    count.textContent = shown === items.length
-      ? items.length + (items.length === 1 ? " tool" : " tools")
-      : shown + " of " + items.length;
-  }
-  q.addEventListener("input", run);
-  run();
-})();
-</script>
+${search ? SEARCH_SCRIPT : ""}
 </body>
 </html>
 `);
