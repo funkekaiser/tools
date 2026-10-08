@@ -100,6 +100,17 @@
             data-tip="Phones need the https:// part to open a link. Leave this on and it is added for you.">
           <label for="link-https">Put https:// in front if I leave it out</label>
         </div>
+        <fieldset class="field">
+          <legend class="label" id="link-caps-label">Write it in capital letters?</legend>
+          <div class="seg" role="group" aria-labelledby="link-caps-label" data-tip-anchor>
+            <button type="button" data-caps="none" aria-pressed="false"
+              data-tip="Keeps the address exactly as you typed it.">No</button>
+            <button type="button" data-caps="host" aria-pressed="true"
+              data-tip="Capitals take less room in a QR code, so the code can come out smaller. Website names ignore capitals, so the link works exactly the same.">Site name</button>
+            <button type="button" data-caps="all" aria-pressed="false"
+              data-tip="The smallest code. But some websites treat /Menu and /menu as different pages, so scan it once and check before you print it.">Everything</button>
+          </div>
+        </fieldset>
       </div>
 
       <div data-pane="text" hidden>
@@ -530,10 +541,52 @@ var QR = (function () {
     }
     return out;
   }
-  function pickMode(t) {
-    if (t.length && /^[0-9]+$/.test(t)) return "numeric";
-    if (t.length && /^[0-9A-Z $%*+\-.\/:]+$/.test(t)) return "alnum";
-    return "byte";
+  // A code can switch modes partway through, so "HTTPS://EXAMPLE.COM/menu"
+  // packs the capitals tightly and only the lowercase tail costs a full byte
+  // per letter. Each switch costs a new header, so a short run of digits in
+  // the middle of a word is not worth one. This finds the cheapest split:
+  // costs are counted in sixths of a bit so that numeric (10 bits per 3
+  // digits) and alphanumeric (11 bits per 2 characters) stay whole numbers.
+  var MODES = ["numeric", "alnum", "byte"];
+  function segment(text, ver) {
+    var chars = Array.from(text);
+    if (!chars.length) return [{ mode: "byte", text: "" }];
+    var head = MODES.map(function (m) { return (4 + countBits(m, ver)) * 6; });
+    var whole = function (x) { return Math.ceil(x / 6) * 6; };
+    var cost = null, from = [];
+    chars.forEach(function (ch, i) {
+      var step = [
+        /[0-9]/.test(ch) ? 20 : Infinity,
+        ALNUM.indexOf(ch) >= 0 ? 33 : Infinity,
+        utf8(ch).length * 48
+      ];
+      var next = [Infinity, Infinity, Infinity], back = [0, 0, 0];
+      for (var m = 0; m < 3; m++) {
+        if (step[m] === Infinity) continue;
+        if (!cost) { next[m] = head[m] + step[m]; continue; }
+        for (var k = 0; k < 3; k++) {
+          var c = (k === m ? cost[k] : whole(cost[k]) + head[m]) + step[m];
+          if (c < next[m]) { next[m] = c; back[m] = k; }
+        }
+      }
+      cost = next; from.push(back);
+    });
+    var mode = 0;
+    for (var m = 1; m < 3; m++) if (whole(cost[m]) < whole(cost[mode])) mode = m;
+    var modes = [];
+    for (var i = chars.length - 1; i >= 0; i--) { modes[i] = mode; mode = from[i][mode]; }
+    var segs = [];
+    chars.forEach(function (ch, i) {
+      var last = segs[segs.length - 1];
+      if (last && last.mode === MODES[modes[i]]) last.text += ch;
+      else segs.push({ mode: MODES[modes[i]], text: ch });
+    });
+    return segs;
+  }
+  function segmentBits(segs, ver) {
+    return segs.reduce(function (n, sg) {
+      return n + 4 + countBits(sg.mode, ver) + payloadBits(sg.mode, sg.text);
+    }, 0);
   }
   function countBits(mode, ver) {
     var i = ver <= 9 ? 0 : ver <= 26 ? 1 : 2;
@@ -560,9 +613,13 @@ var QR = (function () {
     return Math.floor(bits / 8);
   }
 
-  function encodeBits(text, mode, ver) {
+  function encodeBits(segs, ver) {
     var bits = [];
     function put(val, len) { for (var i = len - 1; i >= 0; i--) bits.push((val >>> i) & 1); }
+    segs.forEach(function (sg) { encodeSegment(put, sg.text, sg.mode, ver); });
+    return bits;
+  }
+  function encodeSegment(put, text, mode, ver) {
     put({ numeric: 1, alnum: 2, byte: 4 }[mode], 4);
     put(charCount(mode, text), countBits(mode, ver));
     var i;
@@ -575,11 +632,10 @@ var QR = (function () {
       var b = utf8(text);
       for (i = 0; i < b.length; i++) put(b[i], 8);
     }
-    return bits;
   }
 
-  function dataCodewordArray(text, mode, ver, ecl) {
-    var bits = encodeBits(text, mode, ver);
+  function dataCodewordArray(segs, ver, ecl) {
+    var bits = encodeBits(segs, ver);
     var cap = dataCodewords(ver, ecl) * 8;
     for (var i = 0; i < 4 && bits.length < cap; i++) bits.push(0);   // terminator
     while (bits.length % 8) bits.push(0);
@@ -740,21 +796,28 @@ var QR = (function () {
   function encode(text, opts) {
     opts = opts || {};
     var ecl = opts.ecl || "M";
-    var mode = pickMode(text);
-    var ver = 0, i;
+    // The length fields grow at versions 10 and 27, which can change the
+    // best split, so the text is split afresh for each of the three ranges.
+    var ver = 0, i, segs = null, need = 0;
     for (i = 1; i <= 40; i++) {
-      if (4 + countBits(mode, i) + payloadBits(mode, text) <= dataCodewords(i, ecl) * 8) { ver = i; break; }
+      if (i === 1 || i === 10 || i === 27) { segs = segment(text, i); need = segmentBits(segs, i); }
+      if (need <= dataCodewords(i, ecl) * 8) { ver = i; break; }
     }
     if (!ver) {
-      var max = charsFor(mode, dataCodewords(40, ecl) * 8 - 4 - countBits(mode, 40));
-      throw new Error("too long — " + charCount(mode, text).toLocaleString() + " of at most " +
-                      max.toLocaleString() + " " + (mode === "byte" ? "bytes" : "characters") +
-                      " at level " + ecl);
+      var room = dataCodewords(40, ecl) * 8;
+      if (segs.length === 1) {
+        var only = segs[0].mode;
+        throw new Error("too long — " + charCount(only, text).toLocaleString() + " of at most " +
+                        charsFor(only, room - 4 - countBits(only, 40)).toLocaleString() + " " +
+                        (only === "byte" ? "bytes" : "characters") + " at level " + ecl);
+      }
+      throw new Error("too long — about " + Math.ceil((need / room - 1) * 100) +
+                      "% more than the largest code holds at level " + ecl);
     }
 
     var q = new Matrix(ver);
     drawFunctionPatterns(q);
-    drawCodewords(q, interleave(dataCodewordArray(text, mode, ver, ecl), ver, ecl));
+    drawCodewords(q, interleave(dataCodewordArray(segs, ver, ecl), ver, ecl));
 
     var best = 0, min = Infinity;
     for (i = 0; i < 8; i++) {
@@ -766,10 +829,16 @@ var QR = (function () {
     applyMask(q, best);
     drawFormat(q, ecl, best);
 
-    var avail = dataCodewords(ver, ecl) * 8 - 4 - countBits(mode, ver);
+    // Room left assumes more of the same kind of characters as the last ones.
+    var tail = segs[segs.length - 1];
+    var used = segs.reduce(function (n, sg) { return n + charCount(sg.mode, sg.text); }, 0);
+    var before = need - payloadBits(tail.mode, tail.text);
+    var modes = [];
+    segs.forEach(function (sg) { if (modes.indexOf(sg.mode) < 0) modes.push(sg.mode); });
     return {
-      modules: q.m, size: q.size, version: ver, ecl: ecl, mask: best, mode: mode,
-      used: charCount(mode, text), capacity: charsFor(mode, avail)
+      modules: q.m, size: q.size, version: ver, ecl: ecl, mask: best,
+      mode: modes.join("+"), segments: segs, bits: need, used: used,
+      capacity: used - charCount(tail.mode, tail.text) + charsFor(tail.mode, dataCodewords(ver, ecl) * 8 - before)
     };
   }
 
@@ -810,6 +879,23 @@ var PAYLOAD = (function () {
 
   /* ---------------------------------------------------------- link ---- */
 
+  // Capital letters, digits and a handful of symbols (/ : . - and a few more)
+  // pack into a QR code in about two-thirds of the room lowercase letters
+  // take. The scheme and the site name never care about case, so writing
+  // those in capitals is always safe. The rest of the address can care —
+  // some servers treat /Menu and /menu as different pages — so that part is
+  // only capitalised when asked. Only a-z change; anything else stays put,
+  // since toUpperCase() would turn ß into SS and change the address.
+  function upper(t) { return t.replace(/[a-z]+/g, function (w) { return w.toUpperCase(); }); }
+  function capitalise(t, caps) {
+    if (caps === "all") return upper(t);
+    if (caps !== "host") return t;
+    var m = /^(https?:\/\/)([^\/?#]*)([\s\S]*)$/i.exec(t);
+    if (!m) return t;
+    var at = m[2].lastIndexOf("@");   // a user name before the @ is case-sensitive
+    return upper(m[1]) + m[2].slice(0, at + 1) + upper(m[2].slice(at + 1)) + m[3];
+  }
+
   function link(v) {
     var t = s(v.url);
     if (!t) fail("Type a web address, for example example.com/menu.");
@@ -825,7 +911,7 @@ var PAYLOAD = (function () {
       if (!host || (host.indexOf(".") < 0 && host.toLowerCase() !== "localhost"))
         fail("That does not look like a web address — check for a typo.");
     }
-    return t;
+    return capitalise(t, v.caps);
   }
 
   /* ---------------------------------------------------- plain text ---- */
@@ -1091,7 +1177,7 @@ var PAYLOAD = (function () {
   var scaleEl = $("scale"), marginEl = $("margin");
   var canvas = $("canvas"), ctx = canvas.getContext("2d"), errEl = $("error");
   var ecl = "M", current = null, timer = null;
-  var wifiSec = "WPA";
+  var wifiSec = "WPA", linkCaps = "host";
 
   var MODE = { numeric: "numbers only", alnum: "letters and numbers", byte: "any text (UTF-8)" };
 
@@ -1106,7 +1192,7 @@ var PAYLOAD = (function () {
   // What each kind reads off the page. Every field keeps its value while another
   // kind is showing, because the blocks are only hidden, never emptied.
   function values(kind) {
-    if (kind === "link") return { url: val("link-url"), https: ticked("link-https") };
+    if (kind === "link") return { url: val("link-url"), https: ticked("link-https"), caps: linkCaps };
     if (kind === "text") return { text: val("text") };
     if (kind === "wifi") return {
       ssid: val("wifi-ssid"), pass: val("wifi-pass"),
@@ -1188,11 +1274,11 @@ var PAYLOAD = (function () {
     }
     $("room").textContent = res
       ? "Room used: " + res.used.toLocaleString() + " of " + res.capacity.toLocaleString() +
-        (res.mode === "byte" ? " characters" : " characters")
+" characters"
       : "";
     $("s-ver").textContent = res ? res.version : "—";
     $("s-size").textContent = res ? res.size + " x " + res.size : "—";
-    $("s-mode").textContent = res ? MODE[res.mode] : "—";
+    $("s-mode").textContent = res ? res.mode.split("+").map(function (m) { return MODE[m]; }).join(" + ") : "—";
     $("s-mask").textContent = res ? res.mask : "—";
     $("s-ecl").textContent = res ? res.ecl : "—";
     ["png", "svg", "copy"].forEach(function (id) { $(id).disabled = !res; });
@@ -1271,6 +1357,14 @@ var PAYLOAD = (function () {
     btn.addEventListener("click", function () {
       ecl = btn.getAttribute("data-ecl");
       press("[data-ecl]", btn);
+      render();
+    });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-caps]"), function (btn) {
+    btn.addEventListener("click", function () {
+      linkCaps = btn.getAttribute("data-caps");
+      press("[data-caps]", btn);
       render();
     });
   });
