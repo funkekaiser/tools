@@ -21,6 +21,12 @@
   --acc:    #b4501e;
   --on-acc: #ffffff;
 
+  /* For a verdict only: a meter or a word that has to say good, so-so or bad.
+     The warm palette alone cannot, and nothing else on a page is coloured. */
+  --ok:     #2f7d4f;
+  --warn:   #8a6100;
+  --bad:    #a8331f;
+
   --pad: clamp(20px, 4vw, 40px);
   --max: 54rem;
 }
@@ -35,6 +41,9 @@
     --line:   #2e2c29;
     --acc:    #f08b52;
     --on-acc: #1a1310;
+    --ok:     #6ecf95;
+    --warn:   #d6a53c;
+    --bad:    #f0705a;
   }
 }
 
@@ -42,11 +51,13 @@
   color-scheme: light;
   --bg:#fdfcfb; --panel:#fff; --sunk:#f4f1ec; --ink:#1c1b19;
   --dim:#6b6660; --line:#e4e0da; --acc:#b4501e; --on-acc:#fff;
+  --ok:#2f7d4f; --warn:#8a6100; --bad:#a8331f;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg:#131313; --panel:#1c1b1a; --sunk:#232120; --ink:#ece9e4;
   --dim:#98928a; --line:#2e2c29; --acc:#f08b52; --on-acc:#1a1310;
+  --ok:#6ecf95; --warn:#d6a53c; --bad:#f0705a;
 }
 
 * { box-sizing: border-box; }
@@ -157,6 +168,7 @@ legend { padding: 0; }
 
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
 .note { color: var(--dim); font-size: 14px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .err { color: var(--acc); font-size: 14px; }
 .mono { font-family: var(--mono); font-size: 14px; }
 
