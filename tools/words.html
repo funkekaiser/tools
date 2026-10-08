@@ -12,7 +12,7 @@
   "title": "Word counter",
   "blurb": "Words, characters, sentences and reading time for any text, and whether it fits a text message, a post or a search result.",
   "tags": ["writing", "text"],
-  "keywords": ["word count", "character count", "letter count", "counter", "characters", "words", "sentences", "paragraphs", "reading time", "speaking time", "sms", "text message", "tweet", "x", "twitter", "bluesky", "meta description", "seo", "title length", "essay", "cover letter"]
+  "keywords": ["word count", "character count", "letter count", "counter", "characters", "words", "sentences", "paragraphs", "reading time", "speaking time", "sms", "text message", "tweet", "twitter", "bluesky", "meta description", "seo", "title length", "essay", "cover letter"]
 }
 </script>
 <style>
@@ -88,7 +88,7 @@
       <h2 id="fit-h">Does it fit?</h2>
       <ul class="limits" aria-labelledby="fit-h">
         <li id="l-sms"><span class="name">Text message</span><span class="used"></span><span class="say"></span></li>
-        <li id="l-x"><span class="name">Post on X</span><span class="used"></span><span class="say"></span></li>
+        <li id="l-x"><span class="name">Post on Twitter</span><span class="used"></span><span class="say"></span></li>
         <li id="l-bsky"><span class="name">Bluesky post</span><span class="used"></span><span class="say"></span></li>
         <li id="l-title"><span class="name">Search title</span><span class="used"></span><span class="say"></span></li>
         <li id="l-desc"><span class="name">Search description</span><span class="used"></span><span class="say"></span></li>
@@ -103,7 +103,7 @@
           <dt>UTF-8 bytes</dt><dd id="s-bytes">—</dd>
           <dt>lines</dt><dd id="s-lines">—</dd>
           <dt>SMS encoding</dt><dd id="s-sms">—</dd>
-          <dt>X length</dt><dd id="s-x">—</dd>
+          <dt>Twitter length</dt><dd id="s-x">—</dd>
         </dl>
         <p class="note" style="margin-top:12px">A character is what you see as one: an emoji, a flag or
           an accented letter counts once, however many code points it is built from. A word is anything
@@ -112,7 +112,7 @@
           something on them. Reading assumes 238 words a minute, or 300 characters of Chinese or Japanese,
           and reading aloud 140 words. A text message (plain SMS, not iMessage or WhatsApp) holds 160
           characters from the basic GSM set, or 70 once anything outside it appears, such as an emoji, a
-          curly quote or a non-breaking space; longer ones go as parts of 153 or 67. X counts every link as
+          curly quote or a non-breaking space; longer ones go as parts of 153 or 67. Twitter counts every link as
           23, and emoji and most characters outside European scripts as 2. Bluesky allows 300 characters.
           Search engines cut a page title at about 60 characters and its meta description at about
           155.</p>
@@ -266,8 +266,8 @@ var WC = (function () {
              max: parts === 1 ? single : parts * per };
   }
 
-  // ---- X ----
-  // X's own counting rules (twitter-text, version 3): text is normalised, each
+  // ---- Twitter ----
+  // Twitter's own counting rules (twitter-text, version 3): text is normalised, each
   // link counts as 23, each emoji as 2, and any other character as 1 if it is in
   // these ranges (Latin, Greek, Cyrillic and the like, plus some punctuation) or 2 if not.
   var X_LIGHT = [[0, 4351], [8192, 8205], [8208, 8223], [8242, 8247]];
