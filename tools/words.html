@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Word counter</title>
+<meta name="description" content="Count the words and characters in any text, see how long it takes to read, and check it fits a text message, a post or a search result. Free, no ads, no tracking, nothing uploaded.">
+<link rel="stylesheet" href="../shared/base.css">
+<script src="../shared/shell.js"></script>
+<script type="application/json" id="tool">
+{
+  "title": "Word counter",
+  "blurb": "Words, characters, sentences and reading time for any text, and whether it fits a text message, a post or a search result.",
+  "tags": ["writing", "text"],
+  "keywords": ["word count", "character count", "letter count", "counter", "characters", "words", "sentences", "paragraphs", "reading time", "speaking time", "sms", "text message", "tweet", "twitter", "bluesky", "meta description", "seo", "title length", "essay", "cover letter"]
+}
+</script>
+<style>
+  .split { display: grid; grid-template-columns: 1fr minmax(260px, 320px); gap: 28px; align-items: start;
+           margin-top: 28px; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+
+  /* The text is prose, not data, so it is set in the sans like the rest of the page. */
+  #text { font-family: var(--sans); font-size: 16px; line-height: 1.55; height: 400px; }
+  @media (max-width: 720px) { #text { height: 220px; } }
+  .actions { margin-top: 10px; }
+
+  .big { font-size: clamp(26px, 5vw, 34px); font-weight: 650; letter-spacing: -0.02em;
+         line-height: 1.15; margin: 0 0 12px; font-variant-numeric: tabular-nums; }
+  .counts { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 3px 16px; font-size: 15px; }
+  .counts dt { color: var(--dim); }
+  .counts dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+
+  h2 { margin: 24px 0 8px; }
+  .limits { list-style: none; margin: 0; padding: 0; font-size: 15px; }
+  .limits li { display: flex; align-items: baseline; gap: 10px; padding: 4px 0;
+               border-top: 1px solid var(--line); }
+  .limits li:first-child { border-top: 0; }
+  .limits .name { flex: 1; }
+  .limits .used { color: var(--dim); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .limits .say { min-width: 4.5em; text-align: right; font-weight: 600; color: var(--ok); }
+  .limits .warn .say { color: var(--warn); }
+  .limits .bad .say { color: var(--bad); }
+
+  details { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 20px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 14px; }
+  summary:hover { color: var(--acc); }
+  .facts { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px;
+           font-size: 14px; font-family: var(--mono); }
+  .facts dt { color: var(--dim); }
+  .facts dd { margin: 0; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Word counter</div>
+  <div class="spacer"></div>
+</header>
+
+<main>
+  <h1 style="view-transition-name:tool-words">Word counter</h1>
+  <p class="lede">Paste or type your text to count it and see what it fits into.</p>
+
+  <div class="split">
+    <div>
+      <label for="text">Your text</label>
+      <textarea id="text" data-primary spellcheck="false" autocomplete="off"
+        placeholder="Paste or type here."></textarea>
+      <div class="actions">
+        <button type="button" id="clear"
+          data-tip="Empties the box so you can start on something else.">Clear</button>
+      </div>
+    </div>
+
+    <section aria-labelledby="count-h">
+      <h2 id="count-h" class="sr">The count</h2>
+      <p class="big"><span id="n-words">0</span> <span id="n-words-label">words</span></p>
+      <dl class="counts">
+        <dt>Characters</dt><dd id="n-chars">0</dd>
+        <dt>Without spaces</dt><dd id="n-nospace">0</dd>
+        <dt>Sentences</dt><dd id="n-sentences">0</dd>
+        <dt>Paragraphs</dt><dd id="n-paras">0</dd>
+        <dt>To read</dt><dd id="n-read">—</dd>
+        <dt>To read aloud</dt><dd id="n-say">—</dd>
+      </dl>
+
+      <h2 id="fit-h">Does it fit?</h2>
+      <ul class="limits" aria-labelledby="fit-h">
+        <li id="l-sms"><span class="name">Text message</span><span class="used"></span><span class="say"></span></li>
+        <li id="l-x"><span class="name">Twitter post</span><span class="used"></span><span class="say"></span></li>
+        <li id="l-bsky"><span class="name">Bluesky post</span><span class="used"></span><span class="say"></span></li>
+        <li id="l-title"><span class="name">Search title</span><span class="used"></span><span class="say"></span></li>
+        <li id="l-desc"><span class="name">Search description</span><span class="used"></span><span class="say"></span></li>
+      </ul>
+
+      <details>
+        <summary>Technical details</summary>
+        <dl class="facts">
+          <dt>graphemes</dt><dd id="s-graphemes">—</dd>
+          <dt>code points</dt><dd id="s-points">—</dd>
+          <dt>UTF-16 units</dt><dd id="s-units">—</dd>
+          <dt>UTF-8 bytes</dt><dd id="s-bytes">—</dd>
+          <dt>lines</dt><dd id="s-lines">—</dd>
+          <dt>SMS encoding</dt><dd id="s-sms">—</dd>
+          <dt>Twitter length</dt><dd id="s-x">—</dd>
+        </dl>
+        <p class="note" style="margin-top:12px">A character is what you see as one: an emoji, a flag or
+          an accented letter counts once, however many code points it is built from. A word is anything
+          between spaces with a letter or digit in it; Chinese, Japanese, Thai and other languages written
+          without spaces are split into words by your browser's dictionary. Paragraphs are lines with
+          something on them. Reading assumes 238 words a minute, or 300 characters of Chinese or Japanese,
+          and reading aloud 140 words. A text message (plain SMS, not iMessage or WhatsApp) holds 160
+          characters from the basic GSM set, or 70 once anything outside it appears, such as an emoji, a
+          curly quote or a non-breaking space; longer ones go as parts of 153 or 67. Twitter counts every link as
+          23, and emoji and most characters outside European scripts as 2. Bluesky allows 300 characters.
+          Search engines cut a page title at about 60 characters and its meta description at about
+          155.</p>
+      </details>
+    </section>
+  </div>
+</main>
+
+<div class="savebar">
+  <button type="button" id="save"
+    data-tip="Downloads this page as one file that keeps working with no internet, even if this website disappears.">Save this tool</button>
+  <p class="hint">Keep your own copy of this page — or press <kbd id="savekey">⌘ S</kbd>.</p>
+</div>
+
+<footer class="foot">
+  <p class="promise">Everything happens on your device. Nothing you type is sent or saved anywhere.</p>
+  <div class="links">
+    <span>Free and <a href="https://github.com/funkekaiser/tools">open source</a>.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+  </div>
+</footer>
+
+<script>
+/* The counting. Kept apart from the page so scripts/test-words.mjs can lift it
+   out and check it: a wrong count looks exactly like a right one. */
+var WC = (function () {
+  "use strict";
+
+  var SEG = typeof Intl !== "undefined" && Intl.Segmenter;
+  var GRAPHEMES = SEG ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : null;
+  var WORDS = SEG ? new Intl.Segmenter(undefined, { granularity: "word" }) : null;
+  var SENTENCES = SEG ? new Intl.Segmenter(undefined, { granularity: "sentence" }) : null;
+
+  var LETTER = /[\p{L}\p{N}]/u;
+  // Scripts written without spaces between words.
+  var NOSPACE = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Thai}\p{sc=Lao}\p{sc=Khmer}\p{sc=Myanmar}]/u;
+  var NOSPACE_ALL = new RegExp(NOSPACE.source, "gu");
+  // Read by the character rather than by the word.
+  var CJK = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}]/u;
+  var CJK_ALL = new RegExp(CJK.source, "gu");
+  // A full stop that does not end a sentence: titles, and initials like the J. in J. Smith.
+  var ABBREV = /(?:^|[^\p{L}])(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|Mt|vs|\p{Lu})\.["'\u2019\u201D)]*\s*$/u;
+  var LINES = /\r\n|[\n\r\u2028\u2029]/;
+
+  var READ_WPM = 238, READ_CJK = 300, SAY_WPM = 140;
+
+  function graphemes(s) {
+    if (!GRAPHEMES) return Array.from(s);
+    var out = [];
+    for (var it of GRAPHEMES.segment(s)) out.push(it.segment);
+    return out;
+  }
+
+  // Anything between spaces with a letter or digit in it is one word, so
+  // "well-known", "don't" and "3.14" are one each and a lone dash is none.
+  // Text in a script without spaces is split by the browser's dictionary.
+  function words(s) {
+    var n = 0, cjk = 0;
+    s.split(/\s+/).forEach(function (chunk) {
+      if (!LETTER.test(chunk)) return;
+      if (!NOSPACE.test(chunk)) { n++; return; }
+      if (WORDS) {
+        for (var it of WORDS.segment(chunk)) {
+          if (!it.isWordLike) continue;
+          n++;
+          if (CJK.test(it.segment)) cjk++;
+        }
+        return;
+      }
+      // No dictionary: one word per character in those scripts, which is rough.
+      var each = chunk.match(NOSPACE_ALL).length;
+      var rest = chunk.replace(NOSPACE_ALL, " ").split(/\s+/).filter(function (w) { return LETTER.test(w); });
+      n += each + rest.length;
+      cjk += (chunk.match(CJK_ALL) || []).length;
+    });
+    return { words: n, cjk: cjk };
+  }
+
+  function sentences(s) {
+    var parts = [];
+    if (SENTENCES) for (var it of SENTENCES.segment(s)) parts.push(it.segment);
+    else parts = s.match(/[^.!?\u3002\uFF01\uFF1F\n]+[.!?\u3002\uFF01\uFF1F]*/g) || [];
+    var n = 0, joined = false;
+    parts.forEach(function (p) {
+      if (!LETTER.test(p)) return;
+      if (!joined) n++;
+      joined = ABBREV.test(p);
+    });
+    return n;
+  }
+
+  function utf8(s) {
+    var n = 0;
+    for (var ch of s) {
+      var c = ch.codePointAt(0);
+      n += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+    }
+    return n;
+  }
+
+  function count(s) {
+    var g = graphemes(s);
+    var w = words(s);
+    var lines = s ? s.split(LINES) : [];
+    var cjkChars = (s.match(CJK_ALL) || []).length;
+    var read = w.words ? (w.words - w.cjk) / READ_WPM + cjkChars / READ_CJK : 0;
+    return {
+      chars: g.length,
+      noSpace: g.filter(function (c) { return !/^\s+$/.test(c); }).length,
+      words: w.words,
+      sentences: sentences(s),
+      paragraphs: lines.filter(function (l) { return /\S/.test(l); }).length,
+      lines: lines.length,
+      codePoints: Array.from(s).length,
+      units: s.length,
+      bytes: utf8(s),
+      read: read,
+      say: read * READ_WPM / SAY_WPM
+    };
+  }
+
+  // ---- text messages ----
+  // GSM 03.38: the basic set costs one unit each, the extension set two. One
+  // character outside both and the whole message is sent as UCS-2 instead,
+  // where everything costs a UTF-16 unit, so an emoji costs two.
+  var GSM = "@\u00A3$\u00A5\u00E8\u00E9\u00F9\u00EC\u00F2\u00C7\n\u00D8\u00F8\r\u00C5\u00E5" +
+    "\u0394_\u03A6\u0393\u039B\u03A9\u03A0\u03A8\u03A3\u0398\u039E\u00C6\u00E6\u00DF\u00C9" +
+    " !\"#\u00A4%&'()*+,-./0123456789:;<=>?\u00A1ABCDEFGHIJKLMNOPQRSTUVWXYZ\u00C4\u00D6\u00D1\u00DC\u00A7" +
+    "\u00BFabcdefghijklmnopqrstuvwxyz\u00E4\u00F6\u00F1\u00FC\u00E0";
+  var GSM_EXT = "\f^{}\\[~]|\u20AC";
+
+  function sms(s) {
+    var chars = Array.from(s), odd = null;
+    for (var i = 0; i < chars.length; i++) {
+      if (GSM.indexOf(chars[i]) < 0 && GSM_EXT.indexOf(chars[i]) < 0) { odd = chars[i]; break; }
+    }
+    var gsm = odd === null;
+    var costs = chars.map(function (c) { return gsm ? (GSM_EXT.indexOf(c) > -1 ? 2 : 1) : c.length; });
+    var units = costs.reduce(function (a, b) { return a + b; }, 0);
+    var single = gsm ? 160 : 70, per = gsm ? 153 : 67, parts = 1;
+    if (units > single) {
+      // Long messages are split into parts, and a character never straddles two.
+      var room = per;
+      costs.forEach(function (c) {
+        if (c > room) { parts++; room = per; }
+        room -= c;
+      });
+    }
+    return { encoding: gsm ? "GSM-7" : "UCS-2", odd: odd, units: units, parts: parts,
+             max: parts === 1 ? single : parts * per };
+  }
+
+  // ---- Twitter ----
+  // Twitter's own counting rules (twitter-text, version 3): text is normalised, each
+  // link counts as 23, each emoji as 2, and any other character as 1 if it is in
+  // these ranges (Latin, Greek, Cyrillic and the like, plus some punctuation) or 2 if not.
+  var X_LIGHT = [[0, 4351], [8192, 8205], [8208, 8223], [8242, 8247]];
+  var URL = /\b(?:https?:\/\/|www\.)[^\s<>"]+/gi;
+  var URL_TAIL = /[.,:;!?'")\]]+$/;
+  var EMOJI;
+  try { EMOJI = new RegExp("\\p{RGI_Emoji}", "gv"); }
+  catch (e) {
+    EMOJI = new RegExp("\\p{RI}\\p{RI}|\\p{Extended_Pictographic}[\\uFE0F\\p{Emoji_Modifier}]*" +
+      "(?:\\u200D\\p{Extended_Pictographic}[\\uFE0F\\p{Emoji_Modifier}]*)*", "gu");
+  }
+
+  function xLength(s) {
+    var n = 0;
+    s = s.normalize("NFC")
+      .replace(URL, function (u) { var tail = (u.match(URL_TAIL) || [""])[0]; n += 23; return tail; })
+      .replace(EMOJI, function () { n += 2; return ""; });
+    for (var ch of s) {
+      var c = ch.codePointAt(0);
+      n += X_LIGHT.some(function (r) { return c >= r[0] && c <= r[1]; }) ? 1 : 2;
+    }
+    return n;
+  }
+
+  // ---- the limits shown on the page ----
+  function limits(s, c) {
+    var m = sms(s);
+    var out = [{ id: "sms", used: m.units, max: m.max, tone: m.parts === 1 ? "ok" : "warn",
+                 say: m.parts === 1 ? "Fits" : m.parts + " texts" }];
+    [["x", xLength(s), 280], ["bsky", c.chars, 300], ["title", c.chars, 60], ["desc", c.chars, 155]]
+      .forEach(function (l) {
+        var over = l[1] - l[2];
+        out.push({ id: l[0], used: l[1], max: l[2], tone: over > 0 ? "bad" : "ok",
+                   say: over > 0 ? over.toLocaleString("en-GB") + " over" : "Fits" });
+      });
+    return out;
+  }
+
+  function duration(min) {
+    if (!(min > 0)) return "—";
+    if (min < 1) return "under a minute";
+    if (min < 59.5) {
+      var m = Math.round(min);
+      return "about " + m + (m === 1 ? " minute" : " minutes");
+    }
+    var five = Math.round(min / 5) * 5, h = Math.floor(five / 60), r = five % 60;
+    return "about " + h + (h === 1 ? " hour" : " hours") + (r ? " " + r + " minutes" : "");
+  }
+
+  return { graphemes: graphemes, words: words, sentences: sentences, count: count, sms: sms,
+           xLength: xLength, limits: limits, duration: duration };
+})();
+
+(function () {
+  "use strict";
+
+  var text = document.getElementById("text");
+  var pending = false;
+  function $(id) { return document.getElementById(id); }
+  function num(n) { return n.toLocaleString("en-GB"); }
+
+  function render() {
+    pending = false;
+    var s = text.value;
+    var c = WC.count(s);
+
+    $("n-words").textContent = num(c.words);
+    $("n-words-label").textContent = c.words === 1 ? "word" : "words";
+    $("n-chars").textContent = num(c.chars);
+    $("n-nospace").textContent = num(c.noSpace);
+    $("n-sentences").textContent = num(c.sentences);
+    $("n-paras").textContent = num(c.paragraphs);
+    $("n-read").textContent = WC.duration(c.read);
+    $("n-say").textContent = WC.duration(c.say);
+
+    WC.limits(s, c).forEach(function (l) {
+      var li = $("l-" + l.id);
+      li.className = l.tone;
+      li.querySelector(".used").textContent = num(l.used) + " / " + num(l.max);
+      li.querySelector(".say").textContent = l.say;
+    });
+
+    var m = WC.sms(s);
+    $("s-graphemes").textContent = num(c.chars);
+    $("s-points").textContent = num(c.codePoints);
+    $("s-units").textContent = num(c.units);
+    $("s-bytes").textContent = num(c.bytes);
+    $("s-lines").textContent = num(c.lines);
+    $("s-sms").textContent = m.encoding + ", " + num(m.units) + " units" + (m.odd
+      ? ", because of " + (/\S/.test(m.odd) ? m.odd + " " : "") +
+        "U+" + m.odd.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")
+      : "");
+    $("s-x").textContent = num(WC.xLength(s)) + " of 280";
+  }
+
+  // A long document can take a moment to count, so count once per frame at most.
+  text.addEventListener("input", function () {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(render);
+  });
+
+  $("clear").addEventListener("click", function () {
+    text.value = "";
+    render();
+    text.focus();
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
