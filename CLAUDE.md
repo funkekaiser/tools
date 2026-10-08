@@ -120,6 +120,7 @@ These choices are settled and recorded so they are not quietly undone later.
 ```
 tools/<slug>.html          a whole tool: markup, styles, script, metadata block
 template/tool.html         the starting point for a new tool, not published
+.claude/skills/new-tool/   how to build a tool the way the others are built (/new-tool)
 shared/base.css            the look, inlined into every tool by the build
 shared/shell.js            theme + Save button, inlined into every tool by the build
 scripts/build.mjs          tools/ -> dist/, and writes the front page
@@ -149,11 +150,10 @@ links resolve, so there is nothing to run.
 
 ## Adding a tool
 
-Copy `template/tool.html` to `tools/<slug>.html`. It is a working page — open it in a
-browser first and see it run. Then: fill in the metadata block and the `<title>`, make the
-`<h1>` text match `title` exactly and its `view-transition-name` match the slug, and replace
-everything between the comment markers in `<main>` with the real tool. The head, the
-`.savebar` and the footer are copied as they are.
+Run `/new-tool`. The skill in `.claude/skills/new-tool/SKILL.md` is the procedure, the shape
+of a page and the wording rules, learned from the tools built so far. This file is the record
+of why; the template is the conventions running in a browser. Keep the three in agreement:
+when a decision changes here, the skill and the template change with it.
 
 Keep the template working. Nothing verifies it, and it is the one file the build never
 touches, so a change to `shared/` that breaks it will not surface until someone starts a
