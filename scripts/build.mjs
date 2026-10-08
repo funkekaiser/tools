@@ -17,11 +17,9 @@ const dist = join(root, "dist");
 const TAGLINE = "No ads. No tracking. Free forever.";
 
 // Every page ends the same way. Tool sources carry this markup themselves so they
-// still open straight in a browser; the build only checks that none of them has
-// drifted from it.
+// still open straight in a browser; this is the copy the front page uses.
 const FOOTER = `<footer class="foot">
-  <p class="promise">Everything is made on your own device. What you type is never sent anywhere,
-    and never saved.</p>
+  <p class="promise">Everything happens on your device. Nothing you type is sent or saved anywhere.</p>
   <div class="links">
     <span>Free and open source.</span>
     <span class="spacer"></span>
@@ -104,14 +102,6 @@ ${safe(js)}</script>
 <main>
   <h1>Tools that do one thing</h1>
   <p class="lede">The everyday utilities you search for and then have to fight through ads to use.</p>
-
-  <ul class="points">
-    <li><b>Free forever</b>No ads, no accounts, no upsell, nothing to sign up for.</li>
-    <li><b>Nothing leaves your device</b>Whatever you type stays in your browser. None of it is
-      sent anywhere, and nothing about you is recorded.</li>
-    <li><b>Yours to keep</b>Save any tool to your computer in one click. It keeps working with no
-      internet at all.</li>
-  </ul>
 
   <div style="margin:28px 0 16px">
     <label for="q">Search</label>

@@ -81,10 +81,11 @@ These choices are settled and recorded so they are not quietly undone later.
   requires the `<h1>` text to be identical to the tool's `title` in its metadata block,
   otherwise the morph reads as two different things crossfading. Browsers without support
   just navigate normally. Disabled under `prefers-reduced-motion`.
-- **A tool page is about the tool.** The site's promises — no ads, nothing uploaded, free
-  forever — belong on the front page and in the footer, not in the header and intro of every
-  tool. Say it once, put it out of the way, and give the space back to the thing the visitor
-  came to use.
+- **The promise is made twice, and briefly.** The header tagline on the front page and the
+  one-sentence footer on every page say no ads, nothing uploaded, free forever. Nothing else
+  does: not the intro of a tool, not a note beside its result, not a list of points on the
+  front page. A three-point list there was tried and removed — it said what the tagline and
+  footer already said, at four times the length. Give the space back to the tools.
 - **Every page ends with the same footer.** The privacy promise, "Free and open source.", the
   theme button and the source link, in that order, byte-for-byte identical on the front page and
   on every tool. Tool sources carry the markup themselves so they still open in a browser; the
