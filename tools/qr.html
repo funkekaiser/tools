@@ -1273,8 +1273,7 @@ var PAYLOAD = (function () {
       errEl.textContent = message;
     }
     $("room").textContent = res
-      ? "Room used: " + res.used.toLocaleString() + " of " + res.capacity.toLocaleString() +
-" characters"
+      ? "Room used: " + res.used.toLocaleString() + " of " + res.capacity.toLocaleString() + " characters"
       : "";
     $("s-ver").textContent = res ? res.version : "—";
     $("s-size").textContent = res ? res.size + " x " + res.size : "—";
