@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Random picker</title>
+<meta name="description" content="Flip a coin, roll dice, pick a number or draw names from a hat, fairly. Free, no ads, no tracking, nothing uploaded.">
+<link rel="stylesheet" href="../shared/base.css">
+<script src="../shared/shell.js"></script>
+<script type="application/json" id="tool">
+{
+  "title": "Random picker",
+  "blurb": "Flip a coin, roll dice, pick a number or draw names from a hat. Every outcome is exactly as likely as every other.",
+  "tags": ["random", "games"],
+  "keywords": ["coin", "flip", "toss", "heads", "tails", "dice", "die", "roll", "d20", "number", "generator", "range", "name", "draw", "hat", "raffle", "lottery", "winner", "shuffle", "team", "decide", "fair"]
+}
+</script>
+<style>
+  .split { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 28px; align-items: start;
+           margin-top: 28px; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .side .actions { margin-bottom: 20px; }
+  .field { margin-bottom: 20px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  [hidden] { display: none !important; }
+
+  .out { display: flex; flex-direction: column; gap: 14px; }
+  .result {
+    font-size: clamp(30px, 6vw, 46px);
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    text-align: center;
+    padding: 28px 16px;
+    min-height: 1.2em;
+    overflow-wrap: anywhere;
+    margin: 0;
+  }
+  .result.long { font-size: clamp(20px, 3.4vw, 26px); }
+  .result.empty { color: var(--dim); font-weight: 400; font-size: 18px; }
+  .result.fresh { animation: land .25s ease-out; }
+  @keyframes land { from { opacity: 0; transform: translateY(6px); } }
+  #go { font-weight: 600; min-width: 9em; }
+  #sub { margin: 0; }
+
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 14px; }
+  summary:hover { color: var(--acc); }
+  .facts { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px;
+           font-size: 14px; font-family: var(--mono); }
+  .facts dt { color: var(--dim); }
+  .facts dd { margin: 0; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Random picker</div>
+  <div class="spacer"></div>
+</header>
+
+<main>
+  <h1 style="view-transition-name:tool-random">Random picker</h1>
+  <p class="lede">Choose what to pick, then press the button. Every outcome is exactly as likely as every other.</p>
+
+  <div class="split">
+    <div class="side">
+    <div class="actions">
+      <button type="submit" form="form" id="go" data-primary
+        data-tip="Makes a new pick. Earlier picks have no effect on the next one.">Flip</button>
+      <button type="button" id="reset" hidden
+        data-tip="Puts every drawn name back in the hat and clears the list of names drawn.">Start again</button>
+    </div>
+    <form id="form" autocomplete="off">
+      <fieldset class="field">
+        <legend class="label" id="mode-label">What do you need?</legend>
+        <div class="seg" role="group" aria-labelledby="mode-label" data-tip-anchor>
+          <button type="button" data-mode="coin" aria-pressed="true"
+            data-tip="Heads or tails, half and half.">Coin</button>
+          <button type="button" data-mode="dice" aria-pressed="false"
+            data-tip="Roll one or more dice with as many sides as you like.">Dice</button>
+          <button type="button" data-mode="number" aria-pressed="false"
+            data-tip="A whole number between two others, both ends included.">Number</button>
+          <button type="button" data-mode="names" aria-pressed="false"
+            data-tip="Draw names out of a hat, for a raffle, a rota or who goes first.">Names</button>
+        </div>
+      </fieldset>
+
+      <div id="for-dice" hidden>
+        <div class="pair field">
+          <div>
+            <label for="dice">How many dice?</label>
+            <input type="number" id="dice" value="1" min="1" max="20" step="1"
+              data-tip="Up to 20 at once. You get each die and the total.">
+          </div>
+          <div>
+            <label for="sides">Sides on each</label>
+            <input type="number" id="sides" value="6" min="2" max="1000" step="1"
+              data-tip="An ordinary die has 6. Board games also use 4, 8, 10, 12 and 20.">
+          </div>
+        </div>
+      </div>
+
+      <div id="for-number" hidden>
+        <div class="pair field">
+          <div>
+            <label for="from">From</label>
+            <input type="number" id="from" value="1" step="1"
+              data-tip="The smallest number that can come up. It can come up itself.">
+          </div>
+          <div>
+            <label for="to">To</label>
+            <input type="number" id="to" value="100" step="1"
+              data-tip="The largest number that can come up. It can come up itself.">
+          </div>
+        </div>
+      </div>
+
+      <div id="for-names" hidden>
+        <div class="field">
+          <label for="names">Names, one on each line</label>
+          <textarea id="names" rows="6" spellcheck="false"
+            data-tip="Blank lines are skipped. Write a name twice to give it two tickets.">Alex
+Sam
+Jordan
+Priya
+Chris</textarea>
+        </div>
+        <div class="pair field">
+          <div>
+            <label for="take">How many each time?</label>
+            <input type="number" id="take" value="1" min="1" max="1000" step="1"
+              data-tip="How many names come out with each press of the button.">
+          </div>
+        </div>
+        <fieldset class="field">
+          <legend class="label" id="back-label">After a name is drawn</legend>
+          <div class="seg" role="group" aria-labelledby="back-label" data-tip-anchor id="back">
+            <button type="button" data-back="no" aria-pressed="true"
+              data-tip="Drawn names stay out, so nobody comes up twice until you start again.">Keep it out</button>
+            <button type="button" data-back="yes" aria-pressed="false"
+              data-tip="Every name goes back in the hat, so the same one can come up again.">Put it back</button>
+          </div>
+        </fieldset>
+      </div>
+    </form>
+    </div>
+
+    <section class="out" aria-labelledby="result-h">
+      <h2 id="result-h" class="sr">The result</h2>
+      <p class="result panel empty" id="result" aria-live="polite">Press Flip</p>
+      <p class="note" id="sub"></p>
+      <p id="error" class="err" role="alert"></p>
+
+      <details>
+        <summary>Technical details</summary>
+        <dl class="facts">
+          <dt>outcomes</dt><dd id="s-outcomes">—</dd>
+          <dt>chance of each</dt><dd id="s-chance">—</dd>
+          <dt>thrown away</dt><dd id="s-thrown">0</dd>
+          <dt>randomness</dt><dd>crypto.getRandomValues</dd>
+        </dl>
+        <p class="note" style="margin-top:12px">Each pick takes 53 random bits from your browser's
+          cryptographic generator, the same source the password maker uses. The quick way to turn those
+          bits into a number from 1 to n is to take the remainder after dividing by n, but unless n
+          divides 2<sup>53</sup> exactly, that makes the low numbers very slightly more likely. Here the few
+          values at the top that would cause the lean are thrown away and drawn again, so every outcome has
+          exactly the same chance. "Thrown away" counts how often that has happened on this page. Names
+          kept out of the hat are drawn by a Fisher–Yates shuffle, so every order is equally likely.</p>
+      </details>
+    </section>
+  </div>
+</main>
+
+<div class="savebar">
+  <button type="button" id="save"
+    data-tip="Downloads this page as one file that keeps working with no internet, even if this website disappears.">Save this tool</button>
+  <p class="hint">Keep your own copy of this page — or press <kbd id="savekey">⌘ S</kbd>.</p>
+</div>
+
+<footer class="foot">
+  <p class="promise">Everything happens on your device. Nothing you type is sent or saved anywhere.</p>
+  <div class="links">
+    <span>Free and <a href="https://github.com/funkekaiser/tools">open source</a>.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+  </div>
+</footer>
+
+<script>
+/* The picking itself. scripts/test-random.mjs lifts this block out of the page
+   and checks it, so keep it free of the DOM. */
+var PICK = (function () {
+  "use strict";
+
+  var TWO53 = 9007199254740992;
+  var thrown = 0;
+
+  // A whole number from 0 to n - 1, every one equally likely, for any n up to
+  // 2^53. Takes 53 bits and throws away the top 2^53 mod n values, which are
+  // the ones that would make v % n lean towards small numbers.
+  function below(n) {
+    if (!(Number.isInteger(n) && n >= 1 && n <= TWO53)) throw new RangeError("below(" + n + ")");
+    var limit = TWO53 - TWO53 % n;
+    var buf = new Uint32Array(2), v;
+    for (;;) {
+      crypto.getRandomValues(buf);
+      v = (buf[0] >>> 11) * 4294967296 + buf[1];
+      if (v < limit) return v % n;
+      thrown++;
+    }
+  }
+
+  // Both ends included, in either order. Null when the range is too wide to
+  // pick from evenly.
+  function between(a, b) {
+    var lo = Math.min(a, b), hi = Math.max(a, b);
+    var n = hi - lo + 1;
+    if (!Number.isSafeInteger(lo) || !Number.isSafeInteger(hi) || !(n <= TWO53)) return null;
+    return lo + below(n);
+  }
+
+  function coin() { return below(2) === 0 ? "Heads" : "Tails"; }
+
+  function dice(count, sides) {
+    var out = [];
+    for (var i = 0; i < count; i++) out.push(1 + below(sides));
+    return out;
+  }
+
+  // k names from the hat. Kept out: the first k steps of a Fisher–Yates
+  // shuffle, and what is left goes back as the new hat. Put back: k
+  // independent picks and the hat is unchanged.
+  function draw(hat, k, putBack) {
+    var picked = [], i;
+    if (putBack) {
+      for (i = 0; i < k && hat.length; i++) picked.push(hat[below(hat.length)]);
+      return { picked: picked, rest: hat.slice() };
+    }
+    var a = hat.slice();
+    k = Math.min(k, a.length);
+    for (i = 0; i < k; i++) {
+      var j = i + below(a.length - i);
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return { picked: a.slice(0, k), rest: a.slice(k) };
+  }
+
+  function names(text) {
+    return text.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+
+  return { below: below, between: between, coin: coin, dice: dice, draw: draw, names: names,
+           thrown: function () { return thrown; } };
+})();
+
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var modeSeg = document.querySelector("[data-mode]").parentNode;
+  var result = $("result"), sub = $("sub"), error = $("error"), go = $("go"), reset = $("reset");
+  var VERB = { coin: "Flip", dice: "Roll", number: "Pick", names: "Draw" };
+
+  var mode = "coin", putBack = false;
+  var history = [];            // earlier picks in this mode, newest first
+  var hat = null, drawn = [];  // names left in the hat, and names drawn from it
+
+  function int(el) { return el.value.trim() === "" ? NaN : Number(el.value); }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  function grouped(n) { return n.toLocaleString("en-GB"); }
+
+  function facts(outcomes, chance) {
+    $("s-outcomes").textContent = outcomes;
+    $("s-chance").textContent = chance;
+    $("s-thrown").textContent = PICK.thrown();
+  }
+
+  function show(text, line) {
+    result.classList.remove("empty", "fresh", "long");
+    result.textContent = text;
+    if (text.length > 24) result.classList.add("long");
+    void result.offsetWidth;  // restart the animation, so the same answer twice still visibly lands
+    result.classList.add("fresh");
+    sub.textContent = line || "";
+  }
+
+  function idle() {
+    result.className = "result panel empty";
+    result.textContent = "Press " + go.textContent;
+    sub.textContent = "";
+    error.textContent = "";
+  }
+
+  function earlier() {
+    return history.length > 1 ? "Before that: " + history.slice(1, 6).join(", ") + "." : "";
+  }
+
+  // Number checks shared by pick() and the facts, so a bad entry is reported
+  // before anything is drawn.
+  function checkDice() {
+    var count = int($("dice")), sides = int($("sides"));
+    if (!Number.isInteger(count) || count < 1 || count > 20) return { err: "Dice: pick a whole number from 1 to 20." };
+    if (!Number.isInteger(sides) || sides < 2 || sides > 1000) return { err: "Sides: pick a whole number from 2 to 1000." };
+    return { count: count, sides: sides };
+  }
+  function checkRange() {
+    var a = int($("from")), b = int($("to"));
+    if (!Number.isInteger(a) || !Number.isInteger(b)) return { err: "From and To need to be whole numbers." };
+    var lo = Math.min(a, b), hi = Math.max(a, b);
+    if (!Number.isSafeInteger(lo) || !Number.isSafeInteger(hi) || hi - lo + 1 > 9007199254740992)
+      return { err: "That range is too wide. Keep both numbers under about nine thousand million million." };
+    return { lo: lo, hi: hi, n: hi - lo + 1 };
+  }
+  function checkTake() {
+    var k = int($("take"));
+    if (!Number.isInteger(k) || k < 1 || k > 1000) return { err: "How many: pick a whole number from 1 to 1000." };
+    return { k: k };
+  }
+
+  function pick() {
+    error.textContent = "";
+    var c, v;
+    if (mode === "coin") {
+      v = PICK.coin();
+      history.unshift(v);
+      show(v, earlier());
+      facts("2", "1 in 2");
+    } else if (mode === "dice") {
+      c = checkDice();
+      if (c.err) { error.textContent = c.err; return; }
+      var rolls = PICK.dice(c.count, c.sides);
+      var total = rolls.reduce(function (a, b) { return a + b; }, 0);
+      history.unshift(c.count > 1 ? rolls.join(" + ") + " = " + total : String(total));
+      show(rolls.join(", "), (c.count > 1 ? "Total " + total + ". " : "") + earlier());
+      facts(c.sides + " per die", "1 in " + c.sides + " for each die");
+    } else if (mode === "number") {
+      c = checkRange();
+      if (c.err) { error.textContent = c.err; return; }
+      v = grouped(PICK.between(c.lo, c.hi));
+      history.unshift(v);
+      show(v, earlier());
+      facts(grouped(c.n), "1 in " + grouped(c.n));
+    } else {
+      c = checkTake();
+      if (c.err) { error.textContent = c.err; return; }
+      if (!hat) hat = PICK.names($("names").value);
+      if (!hat.length) {
+        if (drawn.length) show("The hat is empty", "Every name has been drawn. Press Start again to put them all back.");
+        else error.textContent = "Write at least one name first.";
+        return;
+      }
+      var size = hat.length;
+      var r = PICK.draw(hat, c.k, putBack);
+      hat = r.rest;
+      drawn = drawn.concat(r.picked);
+      var line;
+      if (putBack) {
+        history.unshift(r.picked.join(", "));
+        line = earlier();
+      } else {
+        var before = drawn.slice(0, drawn.length - r.picked.length);
+        line = plural(hat.length, "name", "names") + " left in the hat." +
+          (before.length ? " Drawn before: " + before.join(", ") + "." : "");
+      }
+      show(r.picked.join(", "), line);
+      facts(plural(size, "name", "names") + (putBack ? "" : " in the hat"),
+        "1 in " + size + (c.k > 1 ? " for each" : ""));
+      reset.hidden = putBack;
+    }
+  }
+
+  function setMode(m) {
+    mode = m;
+    Array.prototype.forEach.call(modeSeg.querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.mode === m));
+    });
+    $("for-dice").hidden = m !== "dice";
+    $("for-number").hidden = m !== "number";
+    $("for-names").hidden = m !== "names";
+    go.textContent = VERB[m];
+    history = [];
+    reset.hidden = m !== "names" || putBack || !drawn.length;
+    if (m === "names" && drawn.length && !putBack) return;  // keep a raffle in progress on screen
+    idle();
+    facts("—", "—");
+  }
+
+  function emptyHat() {
+    hat = null; drawn = []; history = [];
+    reset.hidden = true;
+    idle();
+    facts("—", "—");
+  }
+
+  modeSeg.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-mode]");
+    if (b && b.dataset.mode !== mode) setMode(b.dataset.mode);
+  });
+  $("back").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-back]");
+    if (!b) return;
+    Array.prototype.forEach.call($("back").querySelectorAll("button"), function (x) {
+      x.setAttribute("aria-pressed", String(x === b));
+    });
+    var next = b.dataset.back === "yes";
+    if (next !== putBack) { putBack = next; emptyHat(); }
+  });
+  // A changed list, or new dice or a new range, starts afresh: the earlier
+  // picks no longer describe what is being picked from.
+  $("names").addEventListener("input", emptyHat);
+  ["dice", "sides", "from", "to"].forEach(function (id) {
+    $(id).addEventListener("input", function () { history = []; idle(); });
+  });
+  reset.addEventListener("click", function () { emptyHat(); go.focus(); });
+  $("form").addEventListener("submit", function (e) { e.preventDefault(); pick(); });
+
+  setMode("coin");
+})();
+</script>
+
+</body>
+</html>
