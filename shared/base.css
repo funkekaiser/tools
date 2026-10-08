@@ -195,6 +195,8 @@ kbd {
 .tools .t { font-weight: 650; letter-spacing: -0.01em; margin-bottom: 4px; }
 .tools .b { color: var(--dim); font-size: 14.5px; line-height: 1.5; }
 .tools li[hidden] { display: none; }
+.tools .suggest a { background: transparent; border-style: dashed; }
+.tools .suggest .t { color: var(--dim); }
 
 /* ---------- save ---------- */
 
