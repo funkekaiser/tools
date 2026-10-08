@@ -112,7 +112,8 @@ These choices are settled and recorded so they are not quietly undone later.
   as you type, so a chosen size would keep becoming impossible.
 - **Jargon goes behind a "Technical details" toggle.** The main interface uses plain words;
   the exact version, mask and mode stay available for people who want them, collapsed by
-  default.
+  default. The password maker follows the same rule: the headline is the verdict word, not a
+  number of bits, and what bits are is explained inside the toggle.
 
 ## Layout
 
