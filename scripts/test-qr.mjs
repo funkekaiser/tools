@@ -19,7 +19,7 @@ if (start < 0 || end < 0) {
 const source = page.slice(start, end + 6)
   .replace('return { encode: encode };',
     'return { encode, ECC_PER_BLOCK, NUM_BLOCKS, ECL_BITS, totalCodewords, dataCodewords,' +
-    ' alignPositions, countBits, payloadBits, MASKS, utf8, pickMode };');
+    ' alignPositions, countBits, payloadBits, MASKS, utf8, segment, segmentBits };');
 const QR = new Function(source + '\nreturn QR;')();
 
 
@@ -145,18 +145,25 @@ function decode(res) {
   for(let j=0;j<nb;j++) for(let i=0;i<blocks[j].length-el;i++) data.push(blocks[j][i]);
   let bp=0;
   const take=k=>{ let v=0; for(let i=0;i<k;i++,bp++) v=(v<<1)|((data[bp>>>3]>>(7-(bp&7)))&1); return v; };
-  const mode=take(4);
-  const modeName={1:'numeric',2:'alnum',4:'byte'}[mode];
-  if(!modeName) return {err:'bad mode '+mode};
-  const len=take(QR.countBits(modeName,res.version));
+  // A code may hold several segments, each with its own mode; a mode of 0
+  // (the terminator) or running out of room ends the data.
   let text='';
+  const modes=[];
   const AL="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
-  if(modeName==='byte'){ const by=[]; for(let i=0;i<len;i++) by.push(take(8)); text=new TextDecoder().decode(Uint8Array.from(by)); }
-  else if(modeName==='numeric'){ let i=0; while(i+3<=len){ text+=String(take(10)).padStart(3,'0'); i+=3; }
-    if(len-i===2) text+=String(take(7)).padStart(2,'0'); else if(len-i===1) text+=String(take(4)); }
-  else { let i=0; while(i+2<=len){ const v=take(11); text+=AL[Math.floor(v/45)]+AL[v%45]; i+=2; }
-    if(len-i===1) text+=AL[take(6)]; }
-  return {text, mode:modeName, len};
+  while (bp + 4 <= data.length*8) {
+    const mode=take(4);
+    if (mode===0) break;
+    const modeName={1:'numeric',2:'alnum',4:'byte'}[mode];
+    if(!modeName) return {err:'bad mode '+mode};
+    modes.push(modeName);
+    const len=take(QR.countBits(modeName,res.version));
+    if(modeName==='byte'){ const by=[]; for(let i=0;i<len;i++) by.push(take(8)); text+=new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(by)); }
+    else if(modeName==='numeric'){ let i=0; while(i+3<=len){ text+=String(take(10)).padStart(3,'0'); i+=3; }
+      if(len-i===2) text+=String(take(7)).padStart(2,'0'); else if(len-i===1) text+=String(take(4)); }
+    else { let i=0; while(i+2<=len){ const v=take(11); text+=AL[Math.floor(v/45)]+AL[v%45]; i+=2; }
+      if(len-i===1) text+=AL[take(6)]; }
+  }
+  return {text, modes};
 }
 
 const cases = [
@@ -164,7 +171,8 @@ const cases = [
   'Grüße aus Wien — äöüß ✓', '日本語のテキスト', 'x'.repeat(300),
   '9'.repeat(1000), 'HTTPS://EXAMPLE.COM/PATH', 'The quick brown fox jumps over 13 lazy dogs.',
   'z'.repeat(2900), '7'.repeat(50), 'MIXED case text 123 with symbols !@#$%^&*()',
-  'A'.repeat(4296)
+  'A'.repeat(4296), 'HTTPS://TOOLS.JOF.DEV/qr/', 'HTTPS://EXAMPLE.COM/menu?table=12345678901234',
+  'abc123456789012345678901234567890def', 'Grüße 2026 AUS WIEN 0043660123456', '1'.repeat(4000) + 'x'
 ];
 let n = 0;
 for (const t of cases) for (const ecl of ['L','M','Q','H']) {
@@ -191,6 +199,57 @@ for (let v = 1; v <= 40; v++) for (const ecl of ['L','M','Q','H']) {
 }
 console.log(`full-capacity: all ${vn} version/level combinations encode and decode`);
 
+
+// ---- 4b. mixed modes: the split must be the cheapest one there is ----
+// The reference tries every way of cutting the text into pieces and every mode
+// for each piece, which is exact and needs nothing from the encoder but the bit
+// count of a segment. Short strings over a small alphabet still cover every
+// kind of boundary: digit runs inside capitals, capitals inside lowercase, and
+// characters only byte mode can carry.
+{
+  const MODES = ['numeric', 'alnum', 'byte'];
+  const can = (m, t) => m === 'byte' || (m === 'alnum' ? /^[0-9A-Z $%*+\-.\/:]+$/.test(t) : /^[0-9]+$/.test(t));
+  const best = (chars, ver) => {
+    const cost = [0];
+    for (let j = 1; j <= chars.length; j++) {
+      cost[j] = Infinity;
+      for (let i = 0; i < j; i++) for (const m of MODES) {
+        const t = chars.slice(i, j).join('');
+        if (can(m, t)) cost[j] = Math.min(cost[j], cost[i] + QR.segmentBits([{mode: m, text: t}], ver));
+      }
+    }
+    return cost[chars.length];
+  };
+  const ALPHA = ['1', 'A', 'a', '/', 'é'];
+  let tried = 0, rnd = 7;
+  const next = () => (rnd = (rnd * 1103515245 + 12345) % 2147483648);
+  for (let k = 0; k < 2000; k++) {
+    const len = 1 + next() % 30;
+    const chars = Array.from({length: len}, () => ALPHA[next() % ALPHA.length]);
+    // long digit and capital runs, where switching starts to pay
+    if (k % 3 === 0) chars.splice(next() % len, 0, ...'1234567890123'.split('').slice(0, 1 + next() % 13));
+    if (k % 4 === 0) chars.splice(next() % len, 0, ...'ABCDEFGHIJKLM'.split('').slice(0, 1 + next() % 13));
+    for (const ver of [1, 10, 27]) {
+      const segs = QR.segment(chars.join(''), ver);
+      ok(segs.map(g => g.text).join('') === chars.join(''), `split of "${chars.join('')}" lost characters`);
+      const got = QR.segmentBits(segs, ver), want = best(chars, ver);
+      ok(got === want, `split of "${chars.join('')}" at v${ver} takes ${got} bits, ${want} is possible`);
+      tried++;
+    }
+  }
+  // and what that buys for a real link
+  const lower = QR.encode('https://tools.jof.dev/qr/', {ecl: 'L'});
+  const caps = QR.encode('HTTPS://TOOLS.JOF.DEV/qr/', {ecl: 'L'});
+  ok(caps.mode === 'alnum+byte', `a capitalised site name with a lowercase path: ${caps.mode}`);
+  ok(caps.bits < lower.bits, 'capitals in the site name take fewer bits');
+  const v = (t, ecl) => QR.encode(t, {ecl}).version;
+  ok(v('https://tools.jof.dev', 'L') === 2 && v('HTTPS://TOOLS.JOF.DEV', 'L') === 1,
+    'a site name in capitals drops a size');
+  const long = 'restaurant-zum-goldenen-hirschen.at/speisekarte';
+  ok(v('https://' + long, 'M') === 4 && v('HTTPS://' + long.toUpperCase(), 'M') === 3,
+    'a whole link in capitals drops a size');
+  console.log(`mixed modes: ${tried} splits match the cheapest possible`);
+}
 
 // ---- 5. tables checked against an independent copy (guards against edits to the page) ----
 {
@@ -473,15 +532,26 @@ const refuses = (fn, what) => {
   refuses(() => l({url:'notadomain'}), 'a word that is not a web address');
   refuses(() => l({url:'https://'}), 'a scheme with no site after it');
   refuses(() => l({url:'example.com', https:false}), 'a bare address when https is not wanted');
+  ok(l({url:'tools.jof.dev/qr/?a=b', https:true, caps:'host'}) === 'HTTPS://TOOLS.JOF.DEV/qr/?a=b',
+    'link: capitals for the site name leave the rest alone');
+  ok(l({url:'http://Ada@Example.com:8080/Menu', caps:'host'}) === 'HTTP://Ada@EXAMPLE.COM:8080/Menu',
+    'link: a user name before the @ keeps its case');
+  ok(l({url:'tools.jof.dev/qr/?a=b#c', https:true, caps:'all'}) === 'HTTPS://TOOLS.JOF.DEV/QR/?A=B#C',
+    'link: everything in capitals');
+  ok(l({url:'straße.de/größe', https:true, caps:'all'}) === 'HTTPS://STRAßE.DE/GRößE',
+    'link: letters outside a-z are left as they are');
+  ok(l({url:'mailto:a@b.de', caps:'host'}) === 'mailto:a@b.de', 'link: other schemes are not touched');
+  ok(l({url:'example.com', https:true, caps:'none'}) === 'https://example.com', 'link: no capitals when asked');
   ok(PAYLOAD.text({text:'  spaces kept  '}) === '  spaces kept  ', 'text: stored exactly as typed');
   refuses(() => PAYLOAD.text({text:'   '}), 'nothing but spaces');
   refuses(() => PAYLOAD.build('something else', {}), 'a kind of code that does not exist');
-  console.log('link and text: 13 checks');
+  console.log('link and text: 19 checks');
 }
 
 { // and every one of them has to survive the encoder unchanged
   const samples = [
     ['link', {url:'tools.jof.dev/qr/', https:true}],
+    ['link', {url:'tools.jof.dev/qr/?x=1', https:true, caps:'host'}],
     ['text', {text:'Grüße aus Wien — äöüß ✓'}],
     ['wifi', {ssid:'Kaffee & Kuchen; 1', pass:'a\\b:c,d"e', security:'WPA', hidden:true}],
     ['vcard', {first:'Ada', last:'Lovelace', org:'Analytical, Ltd.', title:'Programmer',
