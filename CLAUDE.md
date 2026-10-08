@@ -100,6 +100,10 @@ These choices are settled and recorded so they are not quietly undone later.
 - **The front page has no search box until it needs one.** build.mjs leaves the search out while
   there are fewer than six tools: a labelled input and a count above three cards you can see at a
   glance is apparatus. The markup and script are still there, waiting for the seventh tool.
+- **The last card asks for the next tool.** build.mjs ends the front-page list with a "Suggest
+  a tool" card linking to a new GitHub issue. It is shaped like a tool card but drawn with a
+  dashed border and no fill, so it reads as an empty slot rather than a tool. Search skips it
+  and leaves it showing, because a search that finds nothing is when it helps most.
 - **The template lives outside `tools/`.** `template/tool.html` is a real page, not a
   skeleton: it opens in a browser and runs, so the conventions can be seen working rather
   than described. It sits in its own directory because the build publishes everything in
