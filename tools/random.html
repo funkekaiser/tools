@@ -19,6 +19,7 @@
   .split { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 28px; align-items: start;
            margin-top: 28px; }
   @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .side .actions { margin-bottom: 20px; }
   .field { margin-bottom: 20px; }
   .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   [hidden] { display: none !important; }
@@ -63,6 +64,13 @@
   <p class="lede">Choose what to pick, then press the button. Every outcome is exactly as likely as every other.</p>
 
   <div class="split">
+    <div class="side">
+    <div class="actions">
+      <button type="submit" form="form" id="go" data-primary
+        data-tip="Makes a new pick. Earlier picks have no effect on the next one.">Flip</button>
+      <button type="button" id="reset" hidden
+        data-tip="Puts every drawn name back in the hat and clears the list of names drawn.">Start again</button>
+    </div>
     <form id="form" autocomplete="off">
       <fieldset class="field">
         <legend class="label" id="mode-label">What do you need?</legend>
@@ -136,15 +144,10 @@ Chris</textarea>
         </fieldset>
       </div>
     </form>
+    </div>
 
     <section class="out" aria-labelledby="result-h">
       <h2 id="result-h" class="sr">The result</h2>
-      <div class="actions">
-        <button type="submit" form="form" id="go" data-primary
-          data-tip="Makes a new pick. Earlier picks have no effect on the next one.">Flip</button>
-        <button type="button" id="reset" hidden
-          data-tip="Puts every drawn name back in the hat and clears the list of names drawn.">Start again</button>
-      </div>
       <p class="result panel empty" id="result" aria-live="polite">Press Flip</p>
       <p class="note" id="sub"></p>
       <p id="error" class="err" role="alert"></p>
