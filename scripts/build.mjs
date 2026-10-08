@@ -113,7 +113,7 @@ const cards = tools.map((t) => `      <li data-k="${
 // The last card is not a tool: it asks for the next one. It stays put while searching,
 // since an empty result is exactly when it is useful.
 const SUGGEST = `      <li class="suggest">
-        <a href="https://github.com/funkekaiser/tools/issues/new">
+        <a href="https://github.com/funkekaiser/tools/issues/new?template=tool-idea.md">
           <div class="t">Suggest a tool</div>
           <div class="b">Something you keep searching for? Ask for it on GitHub.</div>
         </a>
