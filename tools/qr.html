@@ -35,7 +35,7 @@
 
   .out { display: flex; flex-direction: column; gap: 14px; }
   .actions { display: flex; gap: 10px; flex-wrap: wrap; }
-  .room { color: var(--dim); font-size: 14px; }
+  .room { color: var(--dim); font-size: 14px; margin: 0; }
   details { border-top: 1px solid var(--line); padding-top: 12px; }
   summary { cursor: pointer; color: var(--dim); font-size: 14px; }
   summary:hover { color: var(--acc); }
@@ -375,10 +375,10 @@
       </div>
 
       <fieldset class="field">
-        <legend class="label" id="tough-label">How tough should it be?</legend>
+        <legend class="label" id="tough-label">How tough should it be, at least?</legend>
         <div class="seg" role="group" aria-labelledby="tough-label" data-tip-anchor>
           <button type="button" data-ecl="L" aria-pressed="false"
-            data-tip="Still scans with about 7% of it scratched or covered. Makes the smallest code.">Basic</button>
+            data-tip="Still scans with about 7% of it scratched or covered. Makes the smallest code, and any room left over in it is used to make it tougher.">Basic</button>
           <button type="button" data-ecl="M" aria-pressed="true"
             data-tip="Still scans with about 15% of it scratched or covered.">Normal</button>
           <button type="button" data-ecl="Q" aria-pressed="false"
@@ -409,6 +409,7 @@
       </div>
       <p id="error" class="err" role="alert"></p>
       <p class="room" id="room" aria-live="polite"></p>
+      <p class="room" id="tough"></p>
 
       <div class="actions">
         <button type="button" id="png"
@@ -793,9 +794,15 @@ var QR = (function () {
     return score;
   }
 
+  var LEVELS = ["L", "M", "Q", "H"];
+
+  // opts.ecl is the least error correction wanted. The size is the smallest
+  // that fits at that level; with opts.boost, the level is then raised as far
+  // as that same size still allows, so spare room becomes toughness instead
+  // of padding. A bigger code is never chosen just to be tougher.
   function encode(text, opts) {
     opts = opts || {};
-    var ecl = opts.ecl || "M";
+    var floor = opts.ecl || "M", ecl = floor;
     // The length fields grow at versions 10 and 27, which can change the
     // best split, so the text is split afresh for each of the three ranges.
     var ver = 0, i, segs = null, need = 0;
@@ -815,6 +822,11 @@ var QR = (function () {
                       "% more than the largest code holds at level " + ecl);
     }
 
+    if (opts.boost) {
+      for (var e = LEVELS.indexOf(floor) + 1; e < LEVELS.length; e++)
+        if (need <= dataCodewords(ver, LEVELS[e]) * 8) ecl = LEVELS[e];
+    }
+
     var q = new Matrix(ver);
     drawFunctionPatterns(q);
     drawCodewords(q, interleave(dataCodewordArray(segs, ver, ecl), ver, ecl));
@@ -829,16 +841,18 @@ var QR = (function () {
     applyMask(q, best);
     drawFormat(q, ecl, best);
 
-    // Room left assumes more of the same kind of characters as the last ones.
+    // Room left is how much more fits before the code has to grow: it is
+    // counted at the level asked for, since a boosted level gives way first.
+    // It assumes more of the same kind of characters as the last ones.
     var tail = segs[segs.length - 1];
     var used = segs.reduce(function (n, sg) { return n + charCount(sg.mode, sg.text); }, 0);
     var before = need - payloadBits(tail.mode, tail.text);
     var modes = [];
     segs.forEach(function (sg) { if (modes.indexOf(sg.mode) < 0) modes.push(sg.mode); });
     return {
-      modules: q.m, size: q.size, version: ver, ecl: ecl, mask: best,
+      modules: q.m, size: q.size, version: ver, ecl: ecl, floor: floor, mask: best,
       mode: modes.join("+"), segments: segs, bits: need, used: used,
-      capacity: used - charCount(tail.mode, tail.text) + charsFor(tail.mode, dataCodewords(ver, ecl) * 8 - before)
+      capacity: used - charCount(tail.mode, tail.text) + charsFor(tail.mode, dataCodewords(ver, floor) * 8 - before)
     };
   }
 
@@ -1179,6 +1193,17 @@ var PAYLOAD = (function () {
   var ecl = "M", current = null, timer = null;
   var wifiSec = "WPA", linkCaps = "host";
 
+  var TOUGH = {
+    L: ["Basic", "7%"], M: ["Normal", "15%"], Q: ["Strong", "25%"], H: ["Toughest", "30%"]
+  };
+  function toughness(res) {
+    var got = TOUGH[res.ecl];
+    var line = "Toughness: " + got[0] + " — still scans with about " + got[1] + " of it covered.";
+    if (res.ecl !== res.floor)
+      line += " That is more than " + TOUGH[res.floor][0] + ", for free: this size had room to spare.";
+    return line;
+  }
+
   var MODE = { numeric: "numbers only", alnum: "letters and numbers", byte: "any text (UTF-8)" };
 
   var panes = {};
@@ -1240,7 +1265,7 @@ var PAYLOAD = (function () {
 
     var res;
     try {
-      res = QR.encode(text, { ecl: ecl });
+      res = QR.encode(text, { ecl: ecl, boost: true });
     } catch (e) {
       show(null, e.message);
       return;
@@ -1275,6 +1300,7 @@ var PAYLOAD = (function () {
     $("room").textContent = res
       ? "Room used: " + res.used.toLocaleString() + " of " + res.capacity.toLocaleString() + " characters"
       : "";
+    $("tough").textContent = res ? toughness(res) : "";
     $("s-ver").textContent = res ? res.version : "—";
     $("s-size").textContent = res ? res.size + " x " + res.size : "—";
     $("s-mode").textContent = res ? res.mode.split("+").map(function (m) { return MODE[m]; }).join(" + ") : "—";

@@ -100,6 +100,11 @@ These choices are settled and recorded so they are not quietly undone later.
   than described. It sits in its own directory because the build publishes everything in
   `tools/`, and because it is not a draft — `drafts/` is for experiments that may never
   ship. Being one level deep keeps the `../shared/` links correct when it is copied.
+- **QR toughness is a minimum, not a setting.** The code is the smallest size that fits at
+  the chosen level, then gets the highest error correction that still fits that size. Spare
+  room becomes toughness instead of padding, and a bigger code is never chosen just to be
+  tougher. Picking the size directly was considered and rejected: the sizes that fit change
+  as you type, so a chosen size would keep becoming impossible.
 - **Jargon goes behind a "Technical details" toggle.** The main interface uses plain words;
   the exact version, mask and mode stay available for people who want them, collapsed by
   default.

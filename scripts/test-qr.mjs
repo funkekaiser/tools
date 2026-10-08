@@ -251,6 +251,30 @@ console.log(`full-capacity: all ${vn} version/level combinations encode and deco
   console.log(`mixed modes: ${tried} splits match the cheapest possible`);
 }
 
+// ---- 4c. toughness is a floor: spare room in the chosen size becomes toughness ----
+{
+  const L = ['L', 'M', 'Q', 'H'];
+  let n = 0;
+  for (const t of cases.concat(['x', 'tools.jof.dev', 'HTTPS://TOOLS.JOF.DEV', 'a'.repeat(40), '9'.repeat(200)]))
+    for (const floor of L) {
+      let plain, boosted;
+      try { plain = QR.encode(t, {ecl: floor}); } catch (e) { if (/too long/.test(e.message)) continue; throw e; }
+      boosted = QR.encode(t, {ecl: floor, boost: true});
+      const got = L.indexOf(boosted.ecl);
+      ok(boosted.version === plain.version, `boost changed the size of "${t.slice(0, 18)}" at ${floor}`);
+      ok(got >= L.indexOf(floor), `boost lowered ${floor} to ${boosted.ecl}`);
+      ok(boosted.floor === floor && plain.ecl === floor, 'the level asked for is reported back');
+      if (got < 3) ok(boosted.bits > QR.dataCodewords(boosted.version, L[got + 1]) * 8,
+        `"${t.slice(0, 18)}" at ${floor}: ${L[got + 1]} would also have fit in version ${boosted.version}`);
+      ok(boosted.capacity === plain.capacity, 'room left is counted at the level asked for');
+      const d = decode(boosted);
+      ok(!d.err && d.text === t, `boosted "${t.slice(0, 18)}" at ${floor}: ${d.err || 'came back changed'}`);
+      n++;
+    }
+  ok(QR.encode('x', {ecl: 'L', boost: true}).ecl === 'H', 'one letter in the smallest code gets the toughest level');
+  console.log(`toughness floor: ${n} codes boosted as far as their size allows, and no further`);
+}
+
 // ---- 5. tables checked against an independent copy (guards against edits to the page) ----
 {
   const ECC = {
