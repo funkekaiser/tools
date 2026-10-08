@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Photo shrinker</title>
+<meta name="description" content="Make a photo small enough for an email or an upload form, and remove where it was taken on the way. Free, no ads, no tracking, nothing uploaded.">
+<link rel="stylesheet" href="../shared/base.css">
+<script src="../shared/shell.js"></script>
+<script type="application/json" id="tool">
+{
+  "title": "Photo shrinker",
+  "blurb": "Make a photo small enough for an email or an upload form that keeps rejecting it, and leave behind the hidden note of where it was taken.",
+  "tags": ["photos", "images"],
+  "keywords": ["photo", "image", "picture", "compress", "resize", "reduce", "smaller", "file size", "kb", "mb", "jpg", "jpeg", "heic", "png", "email", "upload", "exif", "gps", "location", "metadata", "remove", "strip"]
+}
+</script>
+<style>
+  .split { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 28px; align-items: start;
+           margin-top: 28px; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .field { margin-bottom: 20px; }
+  .seg button { padding-inline: 10px; }
+
+  .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+          min-height: 108px; padding: 14px; text-align: center; cursor: pointer; margin: 0;
+          border: 1.5px dashed var(--line); border-radius: 10px; background: var(--panel);
+          font-weight: 400; overflow-wrap: anywhere; }
+  .drop strong { font-weight: 600; }
+  .drop:hover, .drop.over { border-color: var(--acc); }
+  .drop:hover strong, .drop.over strong { color: var(--acc); }
+  .drop:focus-within { outline: 2px solid var(--acc); outline-offset: 3px; }
+  .limit { display: flex; gap: 8px; }
+  .limit input { flex: 1; min-width: 0; }
+  .limit select { width: auto; padding-right: 16px; }
+
+  .out { display: flex; flex-direction: column; gap: 12px; }
+  .shot { height: 260px; display: grid; place-items: center; overflow: hidden;
+          background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; }
+  .shot img { max-width: 100%; max-height: 100%; display: block; }
+  .shot p { margin: 0; padding: 16px; color: var(--dim); font-size: 14px; text-align: center; }
+  .verdict { font-size: clamp(24px, 4.5vw, 30px); font-weight: 650; letter-spacing: -0.02em;
+             line-height: 1.15; margin: 0; color: var(--ok); }
+  .working .verdict { color: var(--dim); }
+  .bad .verdict { color: var(--bad); }
+  #detail { margin: 0; }
+  #download { font-weight: 600; }
+  #download.done { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
+
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 14px; }
+  summary:hover { color: var(--acc); }
+  .facts { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px;
+           font-size: 14px; font-family: var(--mono); }
+  .facts dt { color: var(--dim); }
+  .facts dd { margin: 0; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Photo shrinker</div>
+  <div class="spacer"></div>
+</header>
+
+<main>
+  <h1 style="view-transition-name:tool-photo">Photo shrinker</h1>
+  <p class="lede">Make a photo small enough to send, and leave its hidden location and camera details behind.</p>
+
+  <div class="split">
+    <form id="form" autocomplete="off">
+      <div class="field">
+        <label class="drop" id="drop" for="file"
+          data-tip="Any photo your browser can open: JPEG, PNG, WebP, and iPhone photos in Safari. You can also paste one.">
+          <strong id="drop-name">Choose a photo</strong>
+          <span class="note" id="drop-hint">or drop it here</span>
+          <input type="file" id="file" class="sr" accept="image/*" data-primary>
+        </label>
+      </div>
+
+      <div class="field">
+        <label for="amount">Largest file allowed</label>
+        <div class="limit">
+          <input type="number" id="amount" value="1" min="0" step="any" inputmode="decimal"
+            data-tip="Look for the limit on the form or site you are sending to, often written as &quot;max 2 MB&quot;. 1 MB is 1000 KB.">
+          <select id="unit" aria-label="Unit">
+            <option>KB</option>
+            <option selected>MB</option>
+          </select>
+        </div>
+      </div>
+
+      <fieldset class="field">
+        <legend class="label" id="cap-label">How big should the picture be?</legend>
+        <div class="seg" role="group" aria-labelledby="cap-label" data-tip-anchor>
+          <button type="button" data-cap="0" aria-pressed="true"
+            data-tip="Keeps as much of the picture as the limit allows. Best if someone may print it or zoom in.">Largest</button>
+          <button type="button" data-cap="2560" aria-pressed="false"
+            data-tip="At most 2560 pixels across. Sharp on any screen.">Large</button>
+          <button type="button" data-cap="1600" aria-pressed="false"
+            data-tip="At most 1600 pixels across. Plenty for email and most forms.">Medium</button>
+          <button type="button" data-cap="1024" aria-pressed="false"
+            data-tip="At most 1024 pixels across. Enough for a profile picture.">Small</button>
+        </div>
+      </fieldset>
+    </form>
+
+    <section class="out" id="out" aria-labelledby="result-h">
+      <h2 id="result-h" class="sr">The smaller photo</h2>
+      <div class="shot" id="shot"><p>Your smaller photo will appear here.</p></div>
+      <p class="verdict" id="verdict" aria-live="polite"></p>
+      <p class="note" id="detail"></p>
+
+      <div class="actions">
+        <button type="button" id="download" disabled
+          data-tip="Saves the smaller copy as a JPEG, the kind of picture every form and email accepts.">Download JPEG</button>
+      </div>
+
+      <details>
+        <summary>Technical details</summary>
+        <dl class="facts">
+          <dt>original</dt><dd id="s-orig">—</dd>
+          <dt>copy</dt><dd id="s-copy">—</dd>
+          <dt>quality</dt><dd id="s-quality">—</dd>
+          <dt>location</dt><dd id="s-gps">—</dd>
+          <dt>camera</dt><dd id="s-camera">—</dd>
+          <dt>taken</dt><dd id="s-taken">—</dd>
+          <dt>also removed</dt><dd id="s-extras">—</dd>
+        </dl>
+        <p class="note" style="margin-top:12px">Photos carry hidden notes, called metadata (EXIF and
+          XMP): often the GPS position, the camera or phone, and the time. Every note is dropped except
+          the colour profile, which only says how to show the colours, and the copy is checked for
+          leftovers before you can download it. If the photo already fits, its pixels are kept as they
+          are; otherwise it is saved again as a JPEG. Quality is how hard JPEG squeezes the picture:
+          below 60% it turns blocky, so past that point the picture is made smaller instead. 1 MB here
+          means 1,000,000 bytes, the stricter reading, so it also fits sites that count 1,048,576.</p>
+      </details>
+    </section>
+  </div>
+</main>
+
+<div class="savebar">
+  <button type="button" id="save"
+    data-tip="Downloads this page as one file that keeps working with no internet, even if this website disappears.">Save this tool</button>
+  <p class="hint">Keep your own copy of this page — or press <kbd id="savekey">⌘ S</kbd>.</p>
+</div>
+
+<footer class="foot">
+  <p class="promise">Everything happens on your device. Nothing you type is sent or saved anywhere.</p>
+  <div class="links">
+    <span>Free and <a href="https://github.com/funkekaiser/tools">open source</a>.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+  </div>
+</footer>
+
+<script>
+/* ------------------------------------------------------------ photo ----
+   Everything that decides what is in the file people download: reading the
+   hidden notes in a photo, cutting them out of a JPEG, and searching for the
+   size and quality that fit a limit. No DOM in here, so scripts/test-photo.mjs
+   can run it as it is. */
+var PHOTO = (function () {
+  "use strict";
+
+  var QMAX = 0.92, QMIN = 0.6;
+  var MAXPIX = 16e6;   // under the 16,777,216-pixel canvas ceiling on iPhones
+  var MINSIDE = 64;    // smaller than this is no longer a photo
+
+  function ascii(b, at, n) {
+    var s = "";
+    for (var i = 0; i < n && at + i < b.length; i++) s += String.fromCharCode(b[at + i]);
+    return s;
+  }
+
+  function find(b, text, from, to) {
+    to = Math.min(to, b.length - text.length);
+    outer: for (var i = from; i <= to; i++) {
+      for (var j = 0; j < text.length; j++) if (b[i + j] !== text.charCodeAt(j)) continue outer;
+      return i;
+    }
+    return -1;
+  }
+
+  /* ---- EXIF: a small TIFF file inside the photo ---- */
+
+  var TAGS = { 0x010F: "make", 0x0110: "model", 0x0132: "date", 0x9003: "taken", 0xA434: "lens" };
+
+  function readExif(b, at) {
+    if (ascii(b, at, 6) === "Exif\0\0") at += 6;
+    var order = ascii(b, at, 2);
+    if (order !== "II" && order !== "MM") return null;
+    var le = order === "II";
+    var u16 = function (p) { return le ? b[p] | b[p + 1] << 8 : b[p] << 8 | b[p + 1]; };
+    var u32 = function (p) { return (le ? b[p] | b[p + 1] << 8 | b[p + 2] << 16 | b[p + 3] << 24
+                                        : b[p] << 24 | b[p + 1] << 16 | b[p + 2] << 8 | b[p + 3]) >>> 0; };
+    if (u16(at + 2) !== 42) return null;
+
+    var found = { gps: false, thumbnail: false, orientation: 0 };
+    var seen = {};
+    function ifd(off, kind) {
+      var p = at + off;
+      if (!off || seen[p] || p + 2 > b.length) return 0;
+      seen[p] = true;
+      var n = u16(p);
+      for (var i = 0; i < n; i++) {
+        var e = p + 2 + i * 12;
+        if (e + 12 > b.length) return 0;
+        var tag = u16(e), type = u16(e + 2), count = u32(e + 4);
+        if (kind === "gps") { if (tag >= 1 && tag <= 4) found.gps = true; continue; }
+        if (tag === 0x0112) found.orientation = u16(e + 8);
+        else if (tag === 0x8769) ifd(u32(e + 8), "exif");
+        else if (tag === 0x8825) ifd(u32(e + 8), "gps");
+        else if (TAGS[tag] && type === 2) {
+          var v = count <= 4 ? e + 8 : at + u32(e + 8);
+          var s = ascii(b, v, Math.min(count, 200)).replace(/\0[\s\S]*$/, "").trim();
+          if (s) found[TAGS[tag]] = s;
+        }
+      }
+      return u32(p + 2 + n * 12);
+    }
+    // IFD0 points on to IFD1, which only ever holds a small preview picture.
+    var next = ifd(u32(at + 4), "main");
+    found.thumbnail = next > 0 && at + next + 2 <= b.length;
+    found.camera = [found.make, found.model].filter(Boolean).join(" ").trim() || "";
+    if (found.make && found.model && found.model.indexOf(found.make) === 0) found.camera = found.model;
+    found.taken = found.taken || found.date || "";
+    return found;
+  }
+
+  /* ---- JPEG: a list of marked segments, then the picture, then an end mark ---- */
+
+  function segments(b) {
+    if (b[0] !== 0xFF || b[1] !== 0xD8) throw new Error("not a JPEG");
+    var list = [], p = 2;
+    while (p + 1 < b.length) {
+      if (b[p] !== 0xFF) throw new Error("damaged JPEG at byte " + p);
+      var m = b[p + 1];
+      if (m === 0xFF) { p++; continue; }
+      if (m === 0xD9) return { list: list, end: p + 2, tail: b.length - p - 2 };
+      if ((m >= 0xD0 && m <= 0xD7) || m === 0x01) { list.push({ m: m, from: p, to: p + 2 }); p += 2; continue; }
+      var len = b[p + 2] << 8 | b[p + 3], to = p + 2 + len;
+      if (len < 2 || to > b.length) throw new Error("damaged JPEG at byte " + p);
+      list.push({ m: m, from: p, to: to, data: p + 4 });
+      p = to;
+      if (m === 0xDA) {
+        // Picture data runs until a marker that is not an escaped byte or a restart.
+        var q = p;
+        while (q + 1 < b.length && !(b[q] === 0xFF && b[q + 1] !== 0 && !(b[q + 1] >= 0xD0 && b[q + 1] <= 0xD7))) q++;
+        if (q + 1 >= b.length) q = b.length;
+        list.push({ m: -1, from: p, to: q });
+        p = q;
+      }
+    }
+    return { list: list, end: b.length, tail: 0, unterminated: true };
+  }
+
+  // What a segment is. Only three kinds of note are harmless and needed to show
+  // the picture right: the JFIF header, the colour profile, and Adobe's colour flag.
+  function kind(b, s) {
+    if (s.m < 0xE0 || (s.m > 0xEF && s.m !== 0xFE)) return "picture";
+    var head = ascii(b, s.data, 30);
+    if (s.m === 0xFE) return "comment";
+    if (s.m === 0xE0) return head.indexOf("JFIF\0") === 0 ? "jfif" : head.indexOf("JFXX\0") === 0 ? "JFIF thumbnail" : "other notes";
+    if (s.m === 0xE1) return head.indexOf("Exif\0") === 0 ? "exif" : head.indexOf("http://ns.adobe.com/") === 0 ? "XMP" : "other notes";
+    if (s.m === 0xE2) return head.indexOf("ICC_PROFILE\0") === 0 ? "icc" : head.indexOf("MPF\0") === 0 ? "extra images" : "other notes";
+    if (s.m === 0xED) return "IPTC";
+    if (s.m === 0xEE && head.indexOf("Adobe") === 0) return "adobe";
+    return "other notes";
+  }
+  var KEEP = { picture: true, jfif: true, icc: true, adobe: true };
+
+  function strip(b) {
+    var seg = segments(b), parts = [b.subarray(0, 2)], size = 2;
+    seg.list.forEach(function (s) {
+      if (!KEEP[kind(b, s)]) return;
+      parts.push(b.subarray(s.from, s.to));
+      size += s.to - s.from;
+    });
+    // Anything after the end mark goes too: phones hide whole extra pictures there.
+    parts.push(new Uint8Array([0xFF, 0xD9]));
+    size += 2;
+    var out = new Uint8Array(size), at = 0;
+    parts.forEach(function (p) { out.set(p, at); at += p.length; });
+    return out;
+  }
+
+  /* ---- what is hidden in a photo, whatever its kind ---- */
+
+  function inspect(b) {
+    var info = { type: "other", exif: null, extras: [], icc: false, tail: 0 };
+    var add = function (name) { if (info.extras.indexOf(name) < 0) info.extras.push(name); };
+
+    if (b[0] === 0xFF && b[1] === 0xD8) {
+      info.type = "jpeg";
+      var seg;
+      try { seg = segments(b); } catch (e) { info.damaged = true; return info; }
+      seg.list.forEach(function (s) {
+        var k = kind(b, s);
+        if (k === "exif") { info.exif = readExif(b, s.data) || info.exif; if (!info.exif) add("other notes"); }
+        else if (k === "icc") info.icc = true;
+        else if (!KEEP[k]) add(k);
+      });
+      info.tail = seg.tail;
+      if (seg.tail > 0) add("extra images");
+    } else if (ascii(b, 1, 3) === "PNG") {
+      info.type = "png";
+      for (var p = 8; p + 8 <= b.length;) {
+        var len = (b[p] << 24 | b[p + 1] << 16 | b[p + 2] << 8 | b[p + 3]) >>> 0, t = ascii(b, p + 4, 4);
+        if (t === "eXIf") info.exif = readExif(b, p + 8);
+        else if (t === "iCCP") info.icc = true;
+        else if (t === "iTXt" && ascii(b, p + 8, 17) === "XML:com.adobe.xmp") add("XMP");
+        else if (t === "tEXt" || t === "zTXt" || t === "iTXt") add("text notes");
+        else if (t === "tIME") add("time saved");
+        if (t === "IEND") break;
+        p += 12 + len;
+      }
+    } else if (ascii(b, 0, 4) === "RIFF" && ascii(b, 8, 4) === "WEBP") {
+      info.type = "webp";
+      for (var w = 12; w + 8 <= b.length;) {
+        var n = (b[w + 4] | b[w + 5] << 8 | b[w + 6] << 16 | b[w + 7] << 24) >>> 0, c = ascii(b, w, 4);
+        if (c === "EXIF") info.exif = readExif(b, w + 8);
+        else if (c === "XMP ") add("XMP");
+        else if (c === "ICCP") info.icc = true;
+        w += 8 + n + (n & 1);
+      }
+    } else {
+      // HEIC and the rest: the EXIF block still starts with the same six letters.
+      var at = find(b, "Exif\0\0", 0, 4e6);
+      if (at > -1) info.exif = readExif(b, at);
+      if (find(b, "http://ns.adobe.com/xap", 0, 4e6) > -1) add("XMP");
+    }
+    if (info.exif && info.exif.thumbnail) add("small preview picture");
+    return info;
+  }
+
+  // Anything in a finished copy that should not be there. Empty means clean.
+  function leftovers(b) {
+    var info = inspect(b), bad = [];
+    if (info.type !== "jpeg" || info.damaged) return ["not a whole JPEG"];
+    if (info.exif) bad.push("EXIF");
+    bad = bad.concat(info.extras);
+    if (find(b, "Exif\0\0", 0, b.length) > -1 && bad.indexOf("EXIF") < 0) bad.push("EXIF");
+    return bad;
+  }
+
+  /* ---- fitting a limit ---- */
+
+  function startScale(w, h, cap) {
+    var s = 1;
+    if (cap) s = Math.min(s, cap / Math.max(w, h));
+    return Math.min(s, Math.sqrt(MAXPIX / (w * h)));
+  }
+
+  // The original can be handed over untouched (minus its notes) when it is a
+  // JPEG, already fits, needs no turning, and is no bigger than asked for.
+  function keepsPixels(info, size, limit, w, h, cap) {
+    return info.type === "jpeg" && !info.damaged && size <= limit &&
+      (!info.exif || info.exif.orientation <= 1) &&
+      (!cap || Math.max(w, h) <= cap);
+  }
+
+  /* Largest picture first, best quality first. At each size, try the top
+     quality, then the lowest acceptable one; if the lowest fits, search between
+     them for the best that fits. If even the lowest is too big, shrink by about
+     as much as it overshot and go again. encode(width, height, quality) returns
+     a promise of the finished bytes, so whatever is measured is what is kept. */
+  async function fit(w, h, limit, cap, encode) {
+    var s = startScale(w, h, cap);
+    for (var round = 0; round < 12; round++) {
+      var W = Math.max(1, Math.round(w * s)), H = Math.max(1, Math.round(h * s));
+      if (Math.max(W, H) < MINSIDE) return null;
+
+      var top = await encode(W, H, QMAX);
+      if (top.length <= limit) return { width: W, height: H, quality: QMAX, bytes: top };
+
+      var low = await encode(W, H, QMIN);
+      if (low.length <= limit) {
+        var best = { width: W, height: H, quality: QMIN, bytes: low }, lo = QMIN, hi = QMAX;
+        for (var i = 0; i < 4; i++) {
+          var q = Math.round((lo + hi) * 50) / 100;
+          if (q <= lo || q >= hi) break;
+          var b = await encode(W, H, q);
+          if (b.length <= limit) { best = { width: W, height: H, quality: q, bytes: b }; lo = q; }
+          else hi = q;
+        }
+        return best;
+      }
+      s *= Math.min(0.9, Math.sqrt(limit / low.length) * 0.95);
+    }
+    return null;
+  }
+
+  /* ---- words ---- */
+
+  // Rounded down, so a copy that fits never reads as the limit itself.
+  function sizeText(n) {
+    if (n < 1000) return n + " bytes";
+    if (n < 1e4) return (Math.floor(n / 100) / 10) + " KB";
+    if (n < 1e6) return Math.floor(n / 1000) + " KB";
+    if (n < 1e7) return (Math.floor(n / 1e5) / 10).toFixed(1) + " MB";
+    return Math.floor(n / 1e6) + " MB";
+  }
+
+  function removedText(info) {
+    var e = info.exif || {}, parts = [];
+    if (e.gps) parts.push("where it was taken");
+    if (e.camera) parts.push("which camera took it");
+    if (e.taken) parts.push("when");
+    if (parts.length) {
+      var last = parts.pop();
+      return "It no longer says " + (parts.length ? parts.join(", ") + " or " + last : last) + ".";
+    }
+    if (info.exif || info.extras.length) return "Its hidden notes were removed.";
+    return "It had no hidden location or camera details to begin with.";
+  }
+
+  return { QMAX: QMAX, QMIN: QMIN, MAXPIX: MAXPIX, MINSIDE: MINSIDE,
+           readExif: readExif, segments: segments, strip: strip, inspect: inspect,
+           leftovers: leftovers, keepsPixels: keepsPixels, fit: fit,
+           sizeText: sizeText, removedText: removedText };
+})();
+
+/* ---------------------------------------------------------------- page ---- */
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var fileEl = $("file"), drop = $("drop"), amountEl = $("amount"), unitEl = $("unit");
+  var out = $("out"), shot = $("shot"), dl = $("download");
+  var canvas = document.createElement("canvas");
+  var drawn = "";
+  var cap = 0;
+  var photo = null;    // { name, bytes, info, image, width, height }
+  var result = null;   // { bytes, url, name }
+  var run = 0, timer = 0;
+  var STALE = {};
+
+  function limit() {
+    var v = parseFloat(amountEl.value);
+    return v > 0 ? Math.floor(v * (unitEl.value === "KB" ? 1e3 : 1e6)) : 0;
+  }
+
+  function limitText() {
+    return parseFloat(amountEl.value) + " " + unitEl.value;
+  }
+
+  function state(tone, word, detail) {
+    out.className = "out " + tone;
+    $("verdict").textContent = word;
+    $("detail").textContent = detail;
+  }
+
+  function facts(map) {
+    Object.keys(map).forEach(function (k) { $("s-" + k).textContent = map[k]; });
+  }
+
+  function decode(file) {
+    function viaImage() {
+      return new Promise(function (resolve, reject) {
+        var url = URL.createObjectURL(file), img = new Image();
+        img.onload = function () { resolve(img); };
+        img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("unreadable")); };
+        img.src = url;
+      });
+    }
+    if (!window.createImageBitmap) return viaImage();
+    return createImageBitmap(file, { imageOrientation: "from-image" }).catch(viaImage);
+  }
+
+  function encode(W, H, q) {
+    var ctx = canvas.getContext("2d");
+    if (drawn !== W + "x" + H) {
+      canvas.width = W;
+      canvas.height = H;
+      ctx.fillStyle = "#fff";   // a JPEG has no see-through parts; white is what people expect
+      ctx.fillRect(0, 0, W, H);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(photo.image, 0, 0, W, H);
+      drawn = W + "x" + H;
+    }
+    return new Promise(function (resolve, reject) {
+      canvas.toBlob(function (blob) {
+        if (!blob) { reject(new Error("too big for this browser")); return; }
+        blob.arrayBuffer().then(function (ab) { resolve(PHOTO.strip(new Uint8Array(ab))); }, reject);
+      }, "image/jpeg", q);
+    });
+  }
+
+  function clearResult() {
+    if (result) URL.revokeObjectURL(result.url);
+    result = null;
+    dl.disabled = true;
+  }
+
+  async function shrink() {
+    if (!photo) return;
+    var token = ++run, max = limit();
+    clearResult();
+    if (max < 10000) {
+      state("bad", "Limit too small", "Type a limit of at least 10 KB. Forms usually say something like \"max 2 MB\".");
+      return;
+    }
+    state("working", "Working…", "Trying sizes until it fits under " + limitText() + ".");
+
+    try {
+      var r = null, kept = null;
+      if (photo.info.type === "jpeg" && !photo.info.damaged) {
+        try { kept = PHOTO.strip(photo.bytes); } catch (e) { kept = null; }
+      }
+      if (kept && PHOTO.keepsPixels(photo.info, kept.length, max, photo.width, photo.height, cap)) {
+        r = { width: photo.width, height: photo.height, quality: 0, bytes: kept };
+      } else {
+        r = await PHOTO.fit(photo.width, photo.height, max, cap, function (W, H, q) {
+          return token === run ? encode(W, H, q) : Promise.reject(STALE);
+        });
+      }
+      if (token !== run) return;
+      show(r, max);
+    } catch (e) {
+      if (e === STALE || token !== run) return;
+      state("bad", "Could not shrink it", "This browser ran out of room for a picture this big. Try a smaller size above.");
+    }
+  }
+
+  function show(r, max) {
+    if (!r) {
+      state("bad", "Will not fit", "Even shrunk to a thumbnail it is bigger than " + limitText() + ". Try a larger limit.");
+      facts({ copy: "—", quality: "—" });
+      return;
+    }
+    var wrong = PHOTO.leftovers(r.bytes);
+    if (wrong.length) {
+      // Should never happen. If it does, the copy is not handed over.
+      state("bad", "Not safe to send", "The copy still holds " + wrong.join(", ") + ", so it is not offered for download.");
+      return;
+    }
+
+    var stem = photo.name.replace(/\.[^.]*$/, "") || "photo";
+    result = { bytes: r.bytes, url: URL.createObjectURL(new Blob([r.bytes], { type: "image/jpeg" })),
+               name: stem + "-small.jpg" };
+    var img = new Image();
+    img.alt = "The smaller copy of your photo";
+    img.src = result.url;
+    shot.replaceChildren(img);
+    dl.disabled = false;
+
+    var before = photo.bytes.length, after = r.bytes.length;
+    var sizes = after < before
+      ? PHOTO.sizeText(before) + " down to " + PHOTO.sizeText(after)
+      : "Now " + PHOTO.sizeText(after);
+    state("ok", "Fits under " + limitText(),
+      sizes + ", " + r.width + " × " + r.height + " pixels. " + PHOTO.removedText(photo.info));
+
+    facts({
+      copy: PHOTO.sizeText(after) + " (" + after.toLocaleString("en-US") + " bytes), " +
+        r.width + " × " + r.height + ", JPEG, limit " + max.toLocaleString("en-US") + " bytes",
+      quality: r.quality ? Math.round(r.quality * 100) + "%" : "original pixels, not saved again"
+    });
+  }
+
+  function describe() {
+    var i = photo.info, e = i.exif || {};
+    facts({
+      orig: photo.name + ", " + PHOTO.sizeText(photo.bytes.length) + " (" +
+        photo.bytes.length.toLocaleString("en-US") + " bytes), " + photo.width + " × " + photo.height,
+      gps: e.gps ? "found, removed" : "none",
+      camera: e.camera ? e.camera + (e.lens ? ", " + e.lens : "") + " — removed" : "none",
+      taken: e.taken ? e.taken + " — removed" : "none",
+      extras: (i.extras.length ? i.extras.join(", ") : "nothing") + (i.icc ? "; colour profile kept" : "")
+    });
+  }
+
+  async function load(file) {
+    if (!file) return;
+    var token = ++run;
+    clearResult();
+    $("drop-name").textContent = file.name || "Pasted picture";
+    $("drop-hint").textContent = "Choose another, or drop one here";
+    state("working", "Opening…", "");
+    try {
+      var bytes = new Uint8Array(await file.arrayBuffer());
+      var image = await decode(file);
+      if (token !== run) { if (image.close) image.close(); return; }
+      if (photo && photo.image.close) photo.image.close();
+      photo = {
+        name: file.name || "photo",
+        bytes: bytes,
+        info: PHOTO.inspect(bytes),
+        image: image,
+        width: image.naturalWidth || image.width,
+        height: image.naturalHeight || image.height
+      };
+      drawn = "";
+      describe();
+      shrink();
+    } catch (e) {
+      if (token !== run) return;
+      photo = null;
+      shot.replaceChildren();
+      state("bad", "Cannot open this file",
+        "This browser cannot read it as a picture. For an iPhone photo, try Safari, or share it as a JPEG first.");
+    }
+  }
+
+  fileEl.addEventListener("change", function () { load(fileEl.files[0]); });
+
+  document.addEventListener("dragover", function (e) { e.preventDefault(); drop.classList.add("over"); });
+  document.addEventListener("dragleave", function (e) { if (!e.relatedTarget) drop.classList.remove("over"); });
+  document.addEventListener("drop", function (e) {
+    e.preventDefault();
+    drop.classList.remove("over");
+    if (e.dataTransfer && e.dataTransfer.files.length) load(e.dataTransfer.files[0]);
+  });
+  document.addEventListener("paste", function (e) {
+    var items = (e.clipboardData && e.clipboardData.files) || [];
+    for (var i = 0; i < items.length; i++) {
+      if (/^image\//.test(items[i].type)) { e.preventDefault(); load(items[i]); return; }
+    }
+  });
+
+  function later() { clearTimeout(timer); timer = setTimeout(shrink, 350); }
+  amountEl.addEventListener("input", later);
+  unitEl.addEventListener("change", shrink);
+  $("form").addEventListener("submit", function (e) { e.preventDefault(); shrink(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-cap]"), function (btn) {
+    btn.addEventListener("click", function () {
+      cap = +btn.getAttribute("data-cap");
+      Array.prototype.forEach.call(document.querySelectorAll("[data-cap]"), function (b) {
+        b.setAttribute("aria-pressed", String(b === btn));
+      });
+      shrink();
+    });
+  });
+
+  dl.addEventListener("click", function () {
+    if (!result) return;
+    var a = document.createElement("a");
+    a.href = result.url;
+    a.download = result.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    var was = dl.textContent;
+    dl.textContent = "Saved";
+    dl.classList.add("done");
+    setTimeout(function () { dl.textContent = was; dl.classList.remove("done"); }, 1400);
+  });
+})();
+</script>
+</body>
+</html>
