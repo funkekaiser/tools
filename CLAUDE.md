@@ -134,6 +134,7 @@ scripts/build.mjs          tools/ -> dist/, and writes the front page
 scripts/test-qr.mjs        checks the QR encoder and the payload builders in tools/qr.html
 scripts/test-password.mjs  checks the generator inside tools/password.html
 scripts/test-screen.mjs    checks the test patterns inside tools/screen.html
+.github/workflows/build-tool.yml   labelling an issue `build` has Claude build it as a PR
 dist/                      generated, gitignored, what Cloudflare serves
 drafts/                    unfinished experiments, not published
 ```
@@ -167,6 +168,12 @@ touches, so a change to `shared/` that breaks it will not surface until someone 
 tool with it.
 
 Do not scaffold tools nobody asked for.
+
+Labelling an issue `build` does the same thing unattended: `.github/workflows/build-tool.yml`
+runs Claude against the skill and opens a pull request named after the slug. The trigger is a
+label, not the `tool idea` label the issue template applies, because anyone can open an issue
+and only the owner can label one. Nothing builds until someone has read the idea. Merge with
+a merge commit so the tool still lands as one `--no-ff` merge.
 
 ## Deployment
 
