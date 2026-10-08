@@ -64,15 +64,12 @@
 
 <main>
   <h1 style="view-transition-name:tool-qr">QR code maker</h1>
-  <p class="lede">Pick what the code should do — open a link, join a Wi-Fi network, save a contact,
-    start an email or a text, fill in a bank transfer, add a date to a calendar, point at a place on
-    a map, or just hold plain text. It appears on the right, ready to scan or download.</p>
+  <p class="lede">For a link, Wi-Fi, a contact, a bank transfer and more.</p>
   <div class="split" style="margin-top:28px">
     <form id="form" autocomplete="off">
       <div class="field">
         <label for="kind">What should the code do?</label>
-        <select id="kind" data-primary
-          data-tip="Choose what happens when someone scans it. The fields underneath change to match.">
+        <select id="kind" data-primary>
           <option value="link">Open a link</option>
           <option value="text">Show some text</option>
           <option value="wifi">Join a Wi-Fi network</option>
@@ -92,23 +89,21 @@
       <div data-pane="link">
         <div class="field">
           <label for="link-url">Web address</label>
-          <input type="text" id="link-url" spellcheck="false" value="https://tools.jof.dev"
-            data-tip="Where the code should take people, for example example.com/menu.">
+          <input type="text" id="link-url" spellcheck="false" value="https://tools.jof.dev">
         </div>
         <div class="check field">
-          <input type="checkbox" id="link-https" checked
-            data-tip="Phones need the https:// part to open a link. Leave this on and it is added for you.">
+          <input type="checkbox" id="link-https" checked>
           <label for="link-https">Put https:// in front if I leave it out</label>
         </div>
         <fieldset class="field">
           <legend class="label" id="link-caps-label">Write it in capital letters?</legend>
           <div class="seg" role="group" aria-labelledby="link-caps-label" data-tip-anchor>
             <button type="button" data-caps="none" aria-pressed="false"
-              data-tip="Keeps the address exactly as you typed it.">No</button>
+              data-tip="Exactly as typed.">No</button>
             <button type="button" data-caps="host" aria-pressed="true"
-              data-tip="Capitals take less room in a QR code, so the code can come out smaller. Website names ignore capitals, so the link works exactly the same.">Site name</button>
+              data-tip="A smaller code. The link works the same.">Site name</button>
             <button type="button" data-caps="all" aria-pressed="false"
-              data-tip="The smallest code. But some websites treat /Menu and /menu as different pages, so scan it once and check before you print it.">Everything</button>
+              data-tip="The smallest code, but some websites care about capitals. Test it before printing.">Everything</button>
           </div>
         </fieldset>
       </div>
@@ -116,8 +111,7 @@
       <div data-pane="text" hidden>
         <div class="field">
           <label for="text">What should the code say?</label>
-          <textarea id="text" rows="4" spellcheck="false"
-            data-tip="Anything at all. Whoever scans it simply sees these words."></textarea>
+          <textarea id="text" rows="4" spellcheck="false"></textarea>
         </div>
       </div>
 
@@ -125,27 +119,25 @@
         <div class="field">
           <label for="wifi-ssid">Network name (SSID)</label>
           <input type="text" id="wifi-ssid" spellcheck="false"
-            data-tip="Exactly as it appears in the Wi-Fi list, capital letters and all.">
+            data-tip="Exactly as in the Wi-Fi list, capitals and all.">
         </div>
         <fieldset class="field">
           <legend class="label" id="wifi-sec-label">How is it protected?</legend>
           <div class="seg" role="group" aria-labelledby="wifi-sec-label" data-tip-anchor>
             <button type="button" data-sec="WPA" aria-pressed="true"
-              data-tip="The normal choice. WPA, WPA2 and WPA3 networks all use this.">Password</button>
+              data-tip="Almost every network.">Password</button>
             <button type="button" data-sec="WEP" aria-pressed="false"
-              data-tip="Only for very old routers. WEP has not been safe for years.">WEP</button>
+              data-tip="Very old routers only.">WEP</button>
             <button type="button" data-sec="nopass" aria-pressed="false"
-              data-tip="An open network that anyone can join without a password.">None</button>
+              data-tip="An open network.">None</button>
           </div>
         </fieldset>
         <div class="field" id="wifi-pass-row">
           <label for="wifi-pass">Password</label>
-          <input type="text" id="wifi-pass" spellcheck="false"
-            data-tip="Shown as you type so you can check it. It never leaves this device.">
+          <input type="text" id="wifi-pass" spellcheck="false">
         </div>
         <div class="check field">
-          <input type="checkbox" id="wifi-hidden"
-            data-tip="Tick this only if the network does not appear in the Wi-Fi list until you type its name.">
+          <input type="checkbox" id="wifi-hidden">
           <label for="wifi-hidden">The network is hidden</label>
         </div>
       </div>
@@ -193,8 +185,7 @@
         </div>
         <div class="field">
           <label for="vc-street">Street and number</label>
-          <input type="text" id="vc-street"
-            data-tip="Leave the address fields empty and no address is stored at all.">
+          <input type="text" id="vc-street">
         </div>
         <div class="pair field">
           <div>
@@ -213,8 +204,7 @@
           </div>
           <div>
             <label for="vc-note">Note</label>
-            <input type="text" id="vc-note"
-              data-tip="Anything else worth keeping — “met at the spring fair”.">
+            <input type="text" id="vc-note">
           </div>
         </div>
       </div>
@@ -222,8 +212,7 @@
       <div data-pane="email" hidden>
         <div class="field">
           <label for="em-to">Send to</label>
-          <input type="text" id="em-to" spellcheck="false"
-            data-tip="Scanning opens a new message to this address. Nothing is sent until the person presses send.">
+          <input type="text" id="em-to" spellcheck="false">
         </div>
         <div class="field">
           <label for="em-subject">Subject</label>
@@ -231,65 +220,57 @@
         </div>
         <div class="field">
           <label for="em-body">Message</label>
-          <textarea id="em-body" rows="3"
-            data-tip="Filled in for them, ready to change before sending."></textarea>
+          <textarea id="em-body" rows="3"></textarea>
         </div>
       </div>
 
       <div data-pane="sms" hidden>
         <div class="field">
           <label for="sms-number">Phone number</label>
-          <input type="text" id="sms-number" spellcheck="false"
-            data-tip="Best with the country code, like +43 660 1234567.">
+          <input type="text" id="sms-number" spellcheck="false" placeholder="+43 660 1234567">
         </div>
         <div class="field">
           <label for="sms-message">Message</label>
-          <textarea id="sms-message" rows="3"
-            data-tip="Typed into the message for them. Leave it empty for an empty message."></textarea>
+          <textarea id="sms-message" rows="3"></textarea>
         </div>
       </div>
 
       <div data-pane="tel" hidden>
         <div class="field">
           <label for="tel-number">Phone number</label>
-          <input type="text" id="tel-number" spellcheck="false"
-            data-tip="Scanning offers to call it. Best with the country code, like +43 660 1234567.">
+          <input type="text" id="tel-number" spellcheck="false" placeholder="+43 660 1234567">
         </div>
       </div>
 
       <div data-pane="sepa" hidden>
-        <p class="note" style="margin-top:-4px">Many European banking apps can scan one of these to fill
-          in a transfer — not every app can. Euro payments only. If you are printing it, leave the
-          toughness below at Normal or higher.</p>
+        <p class="note" style="margin-top:-4px">Euro only. Most European banking apps can scan these.</p>
         <div class="field">
           <label for="sepa-name">Who is being paid</label>
-          <input type="text" id="sepa-name" maxlength="70"
-            data-tip="The account holder's name, exactly as the bank has it. Up to 70 characters.">
+          <input type="text" id="sepa-name" maxlength="70">
         </div>
         <div class="field">
           <label for="sepa-iban">Account number (IBAN)</label>
-          <input type="text" id="sepa-iban" spellcheck="false"
-            data-tip="Spaces are fine — AT61 1904 3002 3457 3201. It is checked for typos as you type.">
+          <input type="text" id="sepa-iban" spellcheck="false" placeholder="AT61 1904 3002 3457 3201">
         </div>
         <div class="pair field">
           <div>
             <label for="sepa-bic">Bank code (BIC)</label>
             <input type="text" id="sepa-bic" spellcheck="false"
-              data-tip="Sometimes called the SWIFT code. Not needed for payments inside the euro area.">
+              data-tip="Not needed inside the euro area.">
           </div>
           <div>
             <label for="sepa-amount">Amount in euros</label>
             <input type="text" id="sepa-amount" inputmode="decimal"
-              data-tip="Leave it empty and whoever scans it types the amount themselves.">
+              data-tip="Leave empty to let the payer decide.">
           </div>
         </div>
         <fieldset class="field">
           <legend class="label" id="sepa-ref-label">What should the payment say?</legend>
           <div class="seg" role="group" aria-labelledby="sepa-ref-label" data-tip-anchor>
             <button type="button" data-ref="text" aria-pressed="true"
-              data-tip="A line in your own words, up to 140 characters — “Invoice 2026-04”.">A message</button>
+              data-tip="In your own words.">A message</button>
             <button type="button" data-ref="ref" aria-pressed="false"
-              data-tip="The reference number printed on a bill. Use this only if you were given one.">A reference number</button>
+              data-tip="Only if a bill gave you one.">A reference number</button>
           </div>
         </fieldset>
         <div class="field" id="sepa-text-row">
@@ -304,12 +285,12 @@
           <div>
             <label for="sepa-purpose">Purpose code</label>
             <input type="text" id="sepa-purpose" maxlength="4" spellcheck="false"
-              data-tip="A four-letter banking code such as GDDS for goods. Leave it empty unless you were given one.">
+              data-tip="Leave empty unless you were given one.">
           </div>
           <div>
             <label for="sepa-note">Note to the payer</label>
             <input type="text" id="sepa-note" maxlength="70"
-              data-tip="Shown to whoever scans the code, before they confirm the payment.">
+              data-tip="Shown to the payer before they pay.">
           </div>
         </div>
       </div>
@@ -324,8 +305,7 @@
           <input type="text" id="ev-loc">
         </div>
         <div class="check field">
-          <input type="checkbox" id="ev-allday"
-            data-tip="For events with no particular time, like a birthday or a holiday.">
+          <input type="checkbox" id="ev-allday">
           <label for="ev-allday">All day</label>
         </div>
         <div class="pair field">
@@ -335,20 +315,17 @@
           </div>
           <div id="ev-start-time-row">
             <label for="ev-start-time">Starting time</label>
-            <input type="time" id="ev-start-time"
-              data-tip="The time on the calendar of whoever scans it — no time zone is stored.">
+            <input type="time" id="ev-start-time">
           </div>
         </div>
         <div class="pair field">
           <div>
             <label for="ev-end-date">Ends</label>
-            <input type="date" id="ev-end-date"
-              data-tip="For an all-day event this is the last day, and it is included.">
+            <input type="date" id="ev-end-date">
           </div>
           <div id="ev-end-time-row">
             <label for="ev-end-time">Ending time</label>
-            <input type="time" id="ev-end-time"
-              data-tip="Leave it empty and the event lasts an hour.">
+            <input type="time" id="ev-end-time">
           </div>
         </div>
         <div class="field">
@@ -358,18 +335,15 @@
       </div>
 
       <div data-pane="geo" hidden>
-        <p class="note" style="margin-top:-4px">In most map apps you can press and hold a spot to see
-          its two numbers, then copy them here.</p>
+        <p class="note" style="margin-top:-4px">Press and hold a spot in a map app to get these.</p>
         <div class="pair field">
           <div>
             <label for="geo-lat">Latitude</label>
-            <input type="text" id="geo-lat" inputmode="decimal" spellcheck="false"
-              data-tip="How far north or south, from -90 to 90. Vienna is 48.2082.">
+            <input type="text" id="geo-lat" inputmode="decimal" spellcheck="false" placeholder="48.2082">
           </div>
           <div>
             <label for="geo-lon">Longitude</label>
-            <input type="text" id="geo-lon" inputmode="decimal" spellcheck="false"
-              data-tip="How far east or west, from -180 to 180. Vienna is 16.3738.">
+            <input type="text" id="geo-lon" inputmode="decimal" spellcheck="false" placeholder="16.3738">
           </div>
         </div>
       </div>
@@ -378,26 +352,25 @@
         <legend class="label" id="tough-label">How tough should it be, at least?</legend>
         <div class="seg" role="group" aria-labelledby="tough-label" data-tip-anchor>
           <button type="button" data-ecl="L" aria-pressed="false"
-            data-tip="Still scans with about 7% of it scratched or covered. Makes the smallest code, and any room left over in it is used to make it tougher.">Basic</button>
+            data-tip="Survives about 7% damage. The smallest code.">Basic</button>
           <button type="button" data-ecl="M" aria-pressed="true"
-            data-tip="Still scans with about 15% of it scratched or covered.">Normal</button>
+            data-tip="Survives about 15% damage.">Normal</button>
           <button type="button" data-ecl="Q" aria-pressed="false"
-            data-tip="Still scans with about 25% of it scratched or covered.">Strong</button>
+            data-tip="Survives about 25% damage.">Strong</button>
           <button type="button" data-ecl="H" aria-pressed="false"
-            data-tip="Still scans with about 30% of it covered. Best for printing, or for a logo in the middle.">Toughest</button>
+            data-tip="Survives about 30% damage. Good for print.">Toughest</button>
         </div>
       </fieldset>
 
       <div class="pair field">
         <div>
           <label for="scale">Dot size</label>
-          <input type="number" id="scale" value="8" min="1" max="40" step="1"
-            data-tip="How many pixels wide each little square is. Bigger dots make a bigger image.">
+          <input type="number" id="scale" value="8" min="1" max="40" step="1">
         </div>
         <div>
           <label for="margin">White border</label>
           <input type="number" id="margin" value="4" min="0" max="16" step="1"
-            data-tip="The blank margin around the code. Keep it at 4 or more, or some scanners miss it.">
+            data-tip="Keep it at 4 or more.">
         </div>
       </div>
     </form>
@@ -413,19 +386,17 @@
 
       <div class="actions">
         <button type="button" id="png"
-          data-tip="A normal image file. Good for messages, websites and anything on a screen.">Download PNG</button>
+          data-tip="For screens.">Download PNG</button>
         <button type="button" id="svg"
-          data-tip="Stays perfectly sharp at any size. Use it for posters, signs and anything printed.">Download SVG</button>
-        <button type="button" id="copy"
-          data-tip="Copies the code to your clipboard, ready to paste.">Copy</button>
+          data-tip="Sharp at any size. For print.">Download SVG</button>
+        <button type="button" id="copy">Copy</button>
       </div>
 
       <details>
         <summary>Technical details</summary>
         <div class="field raw">
           <label for="raw">The exact text stored in this code</label>
-          <textarea id="raw" rows="4" readonly spellcheck="false"
-            data-tip="This is what a scanner reads. Everything you filled in above becomes these characters."></textarea>
+          <textarea id="raw" rows="4" readonly spellcheck="false"></textarea>
         </div>
         <dl class="facts">
           <dt>version</dt><dd id="s-ver">—</dd>
@@ -1198,9 +1169,8 @@ var PAYLOAD = (function () {
   };
   function toughness(res) {
     var got = TOUGH[res.ecl];
-    var line = "Toughness: " + got[0] + " — still scans with about " + got[1] + " of it covered.";
-    if (res.ecl !== res.floor)
-      line += " That is more than " + TOUGH[res.floor][0] + ", for free: this size had room to spare.";
+    var line = "Toughness: " + got[0] + ", survives about " + got[1] + " damage.";
+    if (res.ecl !== res.floor) line += " Raised from " + TOUGH[res.floor][0] + " at no extra size.";
     return line;
   }
 
