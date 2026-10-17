@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tone generator</title>
+<meta name="description" content="Play a tone, a sweep or noise through either speaker, to test speakers, headphones, rooms and hearing. Free, no ads, no tracking, nothing uploaded.">
+<link rel="stylesheet" href="../shared/base.css">
+<script src="../shared/shell.js"></script>
+<script type="application/json" id="tool">
+{
+  "title": "Tone generator",
+  "blurb": "Play a tone, a sweep or noise through the left, right or both speakers, to test speakers, headphones, rooms and hearing.",
+  "tags": ["audio", "sound"],
+  "keywords": ["tone", "frequency", "hz", "hertz", "sine", "square", "triangle", "sawtooth", "sweep", "chirp", "white noise", "pink noise", "speaker", "headphones", "left", "right", "stereo", "channel", "test", "hearing", "bass", "subwoofer", "signal", "generator", "oscillator"]
+}
+</script>
+<style>
+  .split { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 28px; align-items: start;
+           margin-top: 28px; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .field { margin-bottom: 18px; }
+  .trio { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  [hidden] { display: none !important; }
+  .seg button { padding-inline: 8px; }
+
+  input[type="range"] { display: block; width: 100%; margin: 10px 0 0; accent-color: var(--acc); }
+  .playrow { display: flex; gap: 16px; align-items: center; margin-bottom: 8px; }
+  .playrow .vol { flex: 1; }
+  .playrow input[type="range"] { margin: 0; }
+  #play { font-weight: 600; min-width: 6.5em; padding-block: 12px; }
+  #play.on { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
+  #keys, #ios { margin: 0 0 20px; }
+  .tune { display: flex; gap: 6px; }
+  .tune input { flex: 1; min-width: 0; }
+  .tune button { padding-inline: 9px; font-variant-numeric: tabular-nums; }
+
+  .out { display: flex; flex-direction: column; gap: 14px; }
+  .readout { padding: 28px 16px; text-align: center; }
+  .big { font-size: clamp(30px, 6vw, 46px); font-weight: 650; letter-spacing: -0.02em; line-height: 1.2;
+         margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .readout .note { margin: 10px 0 0; }
+  .warn { color: var(--warn); font-size: 14px; margin: 0; }
+
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 14px; }
+  summary:hover { color: var(--acc); }
+  .facts { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px;
+           font-size: 14px; font-family: var(--mono); }
+  .facts dt { color: var(--dim); }
+  .facts dd { margin: 0; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Tone generator</div>
+  <div class="spacer"></div>
+</header>
+
+<main>
+  <h1 style="view-transition-name:tool-tone">Tone generator</h1>
+  <p class="lede">Choose a tone, a sweep or noise, then press Play. Start quiet and turn it up slowly.</p>
+
+  <div class="split">
+    <form id="form" autocomplete="off">
+      <div class="playrow">
+        <button type="button" id="play" data-primary
+          data-tip="Starts and stops the sound. It fades in and out, so there is no click.">Play</button>
+        <div class="vol">
+          <label for="vol">Volume <span class="note" id="vol-out">20%</span></label>
+          <input type="range" id="vol" min="0" max="100" step="1" value="20"
+            data-tip="Starts low every time the page opens, even from a shared link.">
+        </div>
+      </div>
+      <p class="note" id="keys"><kbd>Space</kbd> plays and stops. <kbd>←</kbd> <kbd>→</kbd> move the
+        pitch by 1 Hz, with <kbd>Shift</kbd> by 0.1 Hz.</p>
+      <p class="note" id="ios" hidden>No sound? Turn off silent mode, then press Play again.</p>
+
+      <fieldset class="field">
+        <legend class="label" id="mode-label">What should it play?</legend>
+        <div class="seg" role="group" aria-labelledby="mode-label" data-tip-anchor id="mode">
+          <button type="button" data-v="tone" aria-pressed="true"
+            data-tip="One steady pitch. Use it to check a speaker, find a rattle or test your hearing.">Tone</button>
+          <button type="button" data-v="sweep" aria-pressed="false"
+            data-tip="A pitch that glides from one end to the other. Listen for where it gets quiet, loud or buzzy.">Sweep</button>
+          <button type="button" data-v="noise" aria-pressed="false"
+            data-tip="A steady hiss with every pitch at once. Useful for setting levels and checking a room.">Noise</button>
+        </div>
+      </fieldset>
+
+      <div class="field" id="for-tone">
+        <label for="freq">Pitch, in Hz</label>
+        <div class="tune">
+          <input type="number" id="freq" value="440" min="1" max="22000" step="any" inputmode="decimal"
+            data-tip="Any number from 1 to 22,000. Lower is deeper. The buttons beside it move it a little at a time.">
+          <button type="button" data-by="-1" aria-label="Down 1 Hz">−1</button>
+          <button type="button" data-by="-0.1" aria-label="Down 0.1 Hz">−.1</button>
+          <button type="button" data-by="0.1" aria-label="Up 0.1 Hz">+.1</button>
+          <button type="button" data-by="1" aria-label="Up 1 Hz">+1</button>
+        </div>
+        <input type="range" id="slide" min="0" max="1000" step="1" aria-label="Pitch, from 20 to 20,000 Hz"
+          data-tip="Drag across the whole range of hearing, from 20 Hz on the left to 20,000 Hz on the right.">
+      </div>
+
+      <div id="for-sweep" hidden>
+        <div class="trio field">
+          <div>
+            <label for="from">From, Hz</label>
+            <input type="number" id="from" value="20" min="1" max="22000" step="any" inputmode="decimal"
+              data-tip="Where the sweep starts.">
+          </div>
+          <div>
+            <label for="to">To, Hz</label>
+            <input type="number" id="to" value="20000" min="1" max="22000" step="any" inputmode="decimal"
+              data-tip="Where it ends. Lower than From and it sweeps downwards.">
+          </div>
+          <div>
+            <label for="secs">Seconds</label>
+            <input type="number" id="secs" value="10" min="1" max="600" step="any" inputmode="decimal"
+              data-tip="How long the sweep takes, up to ten minutes.">
+          </div>
+        </div>
+        <fieldset class="field">
+          <legend class="label" id="scale-label">How should it move?</legend>
+          <div class="seg" role="group" aria-labelledby="scale-label" data-tip-anchor id="scale">
+            <button type="button" data-v="log" aria-pressed="true"
+              data-tip="The same time on every octave, the way ears hear pitch. The right choice for most tests.">Evenly by ear</button>
+            <button type="button" data-v="linear" aria-pressed="false"
+              data-tip="The same number of Hz every second, so it rushes through the bass and lingers on the treble.">Evenly by Hz</button>
+          </div>
+        </fieldset>
+      </div>
+
+      <fieldset class="field" id="for-noise" hidden>
+        <legend class="label" id="noise-label">What kind of noise?</legend>
+        <div class="seg" role="group" aria-labelledby="noise-label" data-tip-anchor id="noise">
+          <button type="button" data-v="pink" aria-pressed="true"
+            data-tip="Sounds even to the ear, like steady rain. The usual choice for speakers and rooms.">Pink</button>
+          <button type="button" data-v="white" aria-pressed="false"
+            data-tip="Bright and hissy, like steam. It has as much treble as bass, so it sounds sharp.">White</button>
+        </div>
+      </fieldset>
+
+      <fieldset class="field" id="for-wave">
+        <legend class="label" id="wave-label">What should it sound like?</legend>
+        <div class="seg" role="group" aria-labelledby="wave-label" data-tip-anchor id="wave">
+          <button type="button" data-v="sine" aria-pressed="true"
+            data-tip="A pure, smooth tone: one pitch and nothing else. Use this for testing.">Sine</button>
+          <button type="button" data-v="square" aria-pressed="false"
+            data-tip="Hollow and buzzy, like an old video game. Played quieter, because it sounds much louder.">Square</button>
+          <button type="button" data-v="triangle" aria-pressed="false"
+            data-tip="Soft and a little brighter than a sine, like a flute.">Triangle</button>
+          <button type="button" data-v="sawtooth" aria-pressed="false"
+            data-tip="A sawtooth wave. Harsh and bright, like a brass instrument. Played quieter, because it sounds much louder.">Saw</button>
+        </div>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend class="label" id="ch-label">Which speaker?</legend>
+        <div class="seg" role="group" aria-labelledby="ch-label" data-tip-anchor id="ch">
+          <button type="button" data-v="left" aria-pressed="false"
+            data-tip="Only the left speaker or earpiece. If you hear it on your right, left and right are swapped.">Left</button>
+          <button type="button" data-v="both" aria-pressed="true"
+            data-tip="Both speakers at once, equally loud.">Both</button>
+          <button type="button" data-v="right" aria-pressed="false"
+            data-tip="Only the right speaker or earpiece. If you hear it on your left, left and right are swapped.">Right</button>
+        </div>
+      </fieldset>
+    </form>
+
+    <section class="out" aria-labelledby="result-h">
+      <h2 id="result-h" class="sr">What is playing</h2>
+      <div class="panel readout">
+        <p class="big" id="big">440 Hz</p>
+        <p class="note" id="line"></p>
+      </div>
+      <p class="sr" id="status" role="status"></p>
+      <p class="warn" id="warn" hidden></p>
+      <p id="error" class="err" role="alert"></p>
+
+      <div class="actions">
+        <button type="button" id="link"
+          data-tip="Copies a link to this exact sound, to share or bookmark. Volume is left out, so it always starts quiet.">Copy link</button>
+      </div>
+
+      <details>
+        <summary>Technical details</summary>
+        <dl class="facts">
+          <dt>frequency</dt><dd id="s-freq">—</dd>
+          <dt>nearest note</dt><dd id="s-note">—</dd>
+          <dt>period</dt><dd id="s-period">—</dd>
+          <dt>wavelength</dt><dd id="s-wave">—</dd>
+          <dt>sweep rate</dt><dd id="s-rate">—</dd>
+          <dt>waveform</dt><dd id="s-shape">—</dd>
+          <dt>level</dt><dd id="s-level">—</dd>
+          <dt>channels</dt><dd id="s-ch">—</dd>
+          <dt>sample rate</dt><dd id="s-sr">starts with the sound</dd>
+        </dl>
+        <p class="note" style="margin-top:12px">Sound comes from your browser's Web Audio engine: an
+          oscillator for tones and sweeps, and eight seconds of generated noise on a loop. Every start,
+          stop and change glides over about 30 milliseconds, so nothing clicks. "Evenly by ear" is a
+          logarithmic sweep and "evenly by Hz" a linear one. Pink noise is white noise filtered to fall
+          by 3 dB each octave, so every octave carries the same power. Level is in dB below full scale,
+          peak for waves and average for noise; the volume slider is squared, which is closer to how
+          loudness is heard. Square and saw waves are played at half and 60% level. Wavelength is in air
+          at 20 °C. The settings live after the # in the address, which a browser never sends anywhere.</p>
+      </details>
+    </section>
+  </div>
+</main>
+
+<div class="savebar">
+  <button type="button" id="save"
+    data-tip="Downloads this page as one file that keeps working with no internet, even if this website disappears.">Save this tool</button>
+  <p class="hint">Keep your own copy of this page — or press <kbd id="savekey">⌘ S</kbd>.</p>
+</div>
+
+<footer class="foot">
+  <p class="promise">Everything happens on your device. Nothing you type is sent or saved anywhere.</p>
+  <div class="links">
+    <span>Free and <a href="https://github.com/funkekaiser/tools">open source</a>.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+  </div>
+</footer>
+
+<script>
+/* The arithmetic: pitch slider, notes, sweeps, noise and the settings in the
+   address. scripts/test-tone.mjs lifts this block out of the page and checks
+   it, so keep it free of the DOM and of Web Audio. */
+var TONE = (function () {
+  "use strict";
+
+  var MIN = 1, MAX = 22000;      // what can be typed; 22,000 stays under every sample rate's limit
+  var LO = 20, HI = 20000;       // the slider: the range of human hearing
+  var STEPS = 1000;
+  var WAVES = ["sine", "square", "triangle", "sawtooth"];
+  var CHANNELS = ["left", "both", "right"];
+  var SCALES = ["log", "linear"];
+  var NOISES = ["pink", "white"];
+  var NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+
+  // Square and saw carry strong overtones and sound far louder than a sine at
+  // the same peak, so they are turned down to sit near it.
+  var TRIM = { sine: 1, triangle: 1, square: 0.5, sawtooth: 0.6 };
+  var NOISE_RMS = 0.2;
+
+  var DEFAULTS = { mode: "tone", f: 440, from: 20, to: 20000, secs: 10, scale: "log",
+                   wave: "sine", noise: "pink", ch: "both" };
+
+  function round(x, places) { var k = Math.pow(10, places); return Math.round(x * k) / k; }
+  function valid(f) { return typeof f === "number" && isFinite(f) && f >= MIN && f <= MAX; }
+  function validSecs(t) { return typeof t === "number" && isFinite(t) && t >= 1 && t <= 600; }
+
+  // Whole hertz from 100 up, tenths below, where a step of 1 Hz is a big jump in pitch.
+  function tidy(f) { return f < 100 ? round(f, 1) : Math.round(f); }
+
+  // Slider position 0..STEPS to hertz and back, evenly by pitch: every octave
+  // takes the same length of slider.
+  function fromSlider(x) { return tidy(LO * Math.pow(HI / LO, x / STEPS)); }
+  function toSlider(f) {
+    var x = Math.round(STEPS * Math.log(f / LO) / Math.log(HI / LO));
+    return Math.max(0, Math.min(STEPS, x));
+  }
+
+  function nudge(f, by) { return Math.min(MAX, Math.max(MIN, round(f + by, 2))); }
+
+  function hz(f) { return round(f, 2).toLocaleString("en-GB", { maximumFractionDigits: 2 }) + " Hz"; }
+
+  // The nearest note on a piano tuned to A4 = 440 Hz, and how far off it is in
+  // cents (hundredths of a semitone).
+  function note(f) {
+    var midi = 69 + 12 * Math.log(f / 440) / Math.LN2;
+    var n = Math.round(midi);
+    return { name: NAMES[((n % 12) + 12) % 12] + (Math.floor(n / 12) - 1),
+             cents: Math.round(100 * (midi - n)) };
+  }
+
+  // The frequency t seconds into a sweep, by the same formulas Web Audio uses
+  // for linearRampToValueAtTime and exponentialRampToValueAtTime.
+  function sweepAt(from, to, secs, scale, t) {
+    var u = Math.max(0, Math.min(1, t / secs));
+    return scale === "linear" ? from + (to - from) * u : from * Math.pow(to / from, u);
+  }
+
+  // Volume slider 0..100 to a gain. Squared, so the bottom of the slider has
+  // room for quiet and the top is not one loud lump.
+  function level(vol) { return Math.pow(vol / 100, 2); }
+
+  // Which warning the settings call for: "range" when the pitch goes very low or
+  // very high, where speakers and ears are hurt before it sounds loud, "loud" for
+  // a high volume, or "" for none.
+  function warn(s, vol) {
+    var lo = s.mode === "tone" ? s.f : s.mode === "sweep" ? Math.min(s.from, s.to) : null;
+    var hi = s.mode === "tone" ? s.f : s.mode === "sweep" ? Math.max(s.from, s.to) : null;
+    if (lo !== null && (lo < 40 || hi > 15000)) return "range";
+    if (vol > 60) return "loud";
+    return "";
+  }
+
+  // n samples of noise that loop without a seam: the tail is cross-faded into
+  // the head at equal power, so the end runs smoothly back into the start.
+  // Pink is Paul Kellet's filter over white, accurate to a fraction of a dB
+  // across the audible range. Scaled to NOISE_RMS exactly.
+  function noise(kind, n, rand) {
+    var m = Math.min(Math.floor(n / 8), 4096), len = n + m, warm = 8192;
+    var raw = new Float64Array(len);
+    var b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, i, w, p;
+    for (i = -warm; i < len; i++) {
+      w = rand() * 2 - 1;
+      if (kind === "pink") {
+        b0 = 0.99886 * b0 + w * 0.0555179;
+        b1 = 0.99332 * b1 + w * 0.0750759;
+        b2 = 0.96900 * b2 + w * 0.1538520;
+        b3 = 0.86650 * b3 + w * 0.3104856;
+        b4 = 0.55000 * b4 + w * 0.5329522;
+        b5 = -0.7616 * b5 - w * 0.0168980;
+        p = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362;
+        b6 = w * 0.115926;
+        w = p;
+      }
+      if (i >= 0) raw[i] = w;
+    }
+    var out = new Float32Array(n), sum = 0, a;
+    for (i = 0; i < n; i++) {
+      if (i < m) {
+        a = (i + 0.5) / m * Math.PI / 2;
+        out[i] = raw[i] * Math.sin(a) + raw[n + i] * Math.cos(a);
+      } else out[i] = raw[i];
+      sum += out[i] * out[i];
+    }
+    var k = NOISE_RMS / Math.sqrt(sum / n);
+    for (i = 0; i < n; i++) out[i] *= k;
+    return out;
+  }
+
+  // Settings to and from the part of the address after #. Only what describes
+  // the sound goes in; volume never does.
+  function num(x) { return String(round(x, 2)); }
+  function encode(s) {
+    var p = [];
+    if (s.mode === "tone") p.push("tone=" + num(s.f));
+    else if (s.mode === "sweep") p.push("sweep=" + num(s.from) + "-" + num(s.to), "time=" + num(s.secs), "scale=" + s.scale);
+    else p.push("noise=" + s.noise);
+    if (s.mode !== "noise") p.push("wave=" + s.wave);
+    p.push("ch=" + s.ch);
+    return "#" + p.join("&");
+  }
+
+  function decode(hash) {
+    var s = {}, k;
+    for (k in DEFAULTS) s[k] = DEFAULTS[k];
+    var number = function (v) { return /^\d+(\.\d+)?$/.test(v) ? Number(v) : NaN; };
+    var mode = null;
+    String(hash || "").replace(/^#/, "").split("&").forEach(function (part) {
+      var eq = part.indexOf("="), key = part.slice(0, eq), v;
+      if (eq < 0) return;
+      try { v = decodeURIComponent(part.slice(eq + 1)); } catch (e) { return; }
+      if (key === "tone" && valid(number(v))) { s.f = number(v); mode = mode || "tone"; }
+      else if (key === "sweep") {
+        var ends = v.split("-");
+        if (ends.length === 2 && valid(number(ends[0])) && valid(number(ends[1]))) {
+          s.from = number(ends[0]); s.to = number(ends[1]); mode = mode || "sweep";
+        }
+      }
+      else if (key === "noise" && NOISES.indexOf(v) > -1) { s.noise = v; mode = mode || "noise"; }
+      else if (key === "time" && validSecs(number(v))) s.secs = number(v);
+      else if (key === "scale" && SCALES.indexOf(v) > -1) s.scale = v;
+      else if (key === "wave" && WAVES.indexOf(v) > -1) s.wave = v;
+      else if (key === "ch" && CHANNELS.indexOf(v) > -1) s.ch = v;
+    });
+    if (mode) s.mode = mode;
+    return s;
+  }
+
+  return { MIN: MIN, MAX: MAX, LO: LO, HI: HI, STEPS: STEPS, TRIM: TRIM, NOISE_RMS: NOISE_RMS,
+           DEFAULTS: DEFAULTS, valid: valid, validSecs: validSecs, tidy: tidy,
+           fromSlider: fromSlider, toSlider: toSlider, nudge: nudge, hz: hz, note: note,
+           sweepAt: sweepAt, level: level, warn: warn, noise: noise, encode: encode, decode: decode };
+})();
+
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var FADE = 0.008;   // time constant of every fade, in seconds; about 30 ms to silence
+
+  var s = TONE.decode("");
+  var vol = 20;
+  var ctx = null, master = null, left = null, right = null;
+  var voice = null;   // what is sounding now: { src, env, start, sweep }
+  var buffers = {};
+  var raf = 0;
+
+  var play = $("play"), freq = $("freq"), slide = $("slide"), error = $("error");
+  var segs = ["mode", "scale", "noise", "wave", "ch"];
+
+  /* ---- sound ---- */
+
+  // Built on the first press of Play: browsers, and iPhones especially, only
+  // allow sound to start from something the visitor did.
+  function audio() {
+    if (ctx) return ctx;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    // Lets Safari play through the speaker even with silent mode on, where supported.
+    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) { /* older Safari */ }
+    ctx = new AC();
+    // Left and right each get their own gain into a two-channel merger, so a
+    // muted side is exactly silent and "Both" is as loud on each side as one alone.
+    var merge = ctx.createChannelMerger(2);
+    left = ctx.createGain();
+    right = ctx.createGain();
+    master = ctx.createGain();
+    left.connect(merge, 0, 0);
+    right.connect(merge, 0, 1);
+    merge.connect(master);
+    master.connect(ctx.destination);
+    master.gain.value = TONE.level(vol);
+    left.gain.value = s.ch === "right" ? 0 : 1;
+    right.gain.value = s.ch === "left" ? 0 : 1;
+    $("s-sr").textContent = ctx.sampleRate.toLocaleString("en-GB") + " Hz";
+    return ctx;
+  }
+
+  function noiseBuffer(kind) {
+    if (!buffers[kind]) {
+      var n = Math.round(ctx.sampleRate * 8);
+      var b = ctx.createBuffer(1, n, ctx.sampleRate);
+      b.getChannelData(0).set(TONE.noise(kind, n, Math.random));
+      buffers[kind] = b;
+    }
+    return buffers[kind];
+  }
+
+  function start() {
+    var t = ctx.currentTime, src, peak, sweep = null;
+    if (s.mode === "noise") {
+      src = ctx.createBufferSource();
+      src.buffer = noiseBuffer(s.noise);
+      src.loop = true;
+      peak = 1;
+    } else {
+      src = ctx.createOscillator();
+      src.type = s.wave;
+      peak = TONE.TRIM[s.wave];
+      if (s.mode === "tone") {
+        src.frequency.setValueAtTime(s.f, t);
+      } else {
+        sweep = { from: s.from, to: s.to, secs: s.secs, scale: s.scale };
+        src.frequency.setValueAtTime(s.from, t);
+        if (s.scale === "linear") src.frequency.linearRampToValueAtTime(s.to, t + s.secs);
+        else src.frequency.exponentialRampToValueAtTime(s.to, t + s.secs);
+      }
+    }
+    var env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.setTargetAtTime(peak, t, FADE);
+    src.connect(env);
+    env.connect(left);
+    env.connect(right);
+    src.start(t);
+
+    var v = { src: src, env: env, start: t, sweep: sweep };
+    if (sweep) fade(v, t + sweep.secs);
+    src.onended = function () {
+      env.disconnect();
+      if (voice === v) { voice = null; stopped(); }
+    };
+    return v;
+  }
+
+  // Never cut a sound off: glide its level to nothing, then stop it once silent.
+  function fade(v, t) {
+    v.env.gain.setTargetAtTime(0, t, FADE);
+    try { v.src.stop(t + FADE * 12); } catch (e) { /* older Safari allows one stop() */ }
+  }
+
+  function glide(param, value) { param.setTargetAtTime(value, ctx.currentTime, FADE); }
+
+  // A new shape, mode or sweep cross-fades into a fresh sound.
+  function restart() {
+    if (!voice) return;
+    fade(voice, ctx.currentTime);
+    voice = start();
+    tick();
+  }
+
+  function begin() {
+    error.textContent = "";
+    if (!audio()) { error.textContent = "This browser cannot make sound. Try a recent Chrome, Firefox or Safari."; return; }
+    if (ctx.state !== "running" && ctx.resume) ctx.resume();
+    voice = start();
+    play.textContent = "Stop";
+    play.classList.add("on");
+    $("status").textContent = "Playing";
+    tick();
+  }
+
+  function end() {
+    if (voice) fade(voice, ctx.currentTime);
+    voice = null;
+    stopped();
+  }
+
+  function stopped() {
+    play.textContent = "Play";
+    play.classList.remove("on");
+    $("status").textContent = "Stopped";
+    cancelAnimationFrame(raf);
+    show();
+  }
+
+  function toggle() { if (voice) end(); else begin(); }
+
+  /* ---- what the page says ---- */
+
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  function where() { return s.ch === "both" ? "through both speakers" : "through the " + s.ch + " speaker only"; }
+
+  function show() {
+    var big = $("big"), line = $("line");
+    var sweeping = voice && voice.sweep;
+    if (s.mode === "tone") {
+      big.textContent = TONE.hz(s.f);
+      line.textContent = voice ? "Playing " + where() + "." : "Press Play to hear it " + where() + ".";
+    } else if (s.mode === "sweep") {
+      if (sweeping) {
+        var w = voice.sweep, t = ctx.currentTime - voice.start;
+        big.textContent = TONE.hz(TONE.tidy(TONE.sweepAt(w.from, w.to, w.secs, w.scale, t)));
+        line.textContent = (w.to < w.from ? "Falling, " : "Rising, ") +
+          plural(Math.max(0, Math.ceil(w.secs - t)), "second", "seconds") + " to go, " + where() + ".";
+      } else {
+        big.textContent = TONE.hz(s.from) + " → " + TONE.hz(s.to);
+        line.textContent = (s.to < s.from ? "Falls" : "Rises") + " over " +
+          plural(s.secs, "second", "seconds") + ", " + where() + ".";
+      }
+    } else {
+      big.textContent = s.noise === "pink" ? "Pink noise" : "White noise";
+      line.textContent = voice ? "Playing " + where() + "." : "Press Play to hear it " + where() + ".";
+    }
+  }
+
+  function tick() {
+    cancelAnimationFrame(raf);
+    show();
+    if (voice && voice.sweep) raf = requestAnimationFrame(tick);
+  }
+
+  function facts() {
+    var tone = s.mode === "tone";
+    var put = function (id, text) { $(id).textContent = text; };
+    if (tone) {
+      var n = TONE.note(s.f), m = 343 / s.f;
+      put("s-freq", TONE.hz(s.f));
+      put("s-note", n.name + (n.cents ? " " + (n.cents > 0 ? "+" : "−") + Math.abs(n.cents) + " cents" : ""));
+      put("s-period", (1000 / s.f).toPrecision(4) + " ms");
+      put("s-wave", m >= 1 ? m.toFixed(2) + " m" : (m * 100).toFixed(1) + " cm");
+    } else {
+      put("s-freq", s.mode === "sweep" ? TONE.hz(s.from) + " → " + TONE.hz(s.to) : "every frequency");
+      ["s-note", "s-period", "s-wave"].forEach(function (id) { put(id, "—"); });
+    }
+    put("s-rate", s.mode !== "sweep" ? "—" : s.scale === "log"
+      ? (Math.abs(Math.log(s.to / s.from) / Math.LN2) / s.secs).toFixed(2) + " octaves/s, logarithmic"
+      : TONE.hz(Math.abs(s.to - s.from) / s.secs).replace(" Hz", " Hz/s") + ", linear");
+    put("s-shape", s.mode === "noise" ? s.noise + " noise" : s.wave);
+    var g = TONE.level(vol) * (s.mode === "noise" ? TONE.NOISE_RMS : TONE.TRIM[s.wave]);
+    put("s-level", g > 0 ? (20 * Math.log10(g)).toFixed(1).replace("-", "−") + " dBFS " +
+      (s.mode === "noise" ? "average" : "peak") : "silent");
+    put("s-ch", s.ch === "both" ? "left and right" : s.ch + " only");
+  }
+
+  function caution() {
+    var w = TONE.warn(s, vol), el = $("warn");
+    el.hidden = !w;
+    el.textContent = w === "range"
+      ? "Very low and very high pitches can damage speakers and hearing before they sound loud. Keep the volume down."
+      : w === "loud" ? "That is loud, especially in headphones. Turn it down before you put them on." : "";
+  }
+
+  function pressed(id, value) {
+    Array.prototype.forEach.call($(id).querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.v === value));
+    });
+  }
+
+  // Put every control in line with s. On touch screens shell.js prints the
+  // chosen option's explanation under each group and refreshes it on a click,
+  // so a click on the group itself, which picks nothing, brings it up to date.
+  function sync() {
+    pressed("mode", s.mode); pressed("scale", s.scale); pressed("noise", s.noise);
+    pressed("wave", s.wave); pressed("ch", s.ch);
+    segs.forEach(function (id) { $(id).dispatchEvent(new Event("click")); });
+    freq.value = s.f;
+    slide.value = TONE.toSlider(s.f);
+    $("from").value = s.from;
+    $("to").value = s.to;
+    $("secs").value = s.secs;
+    $("vol").value = vol;
+    shape();
+  }
+
+  // Everything that follows from a change: what is shown, the facts, the
+  // warning and the address.
+  function shape() {
+    $("for-tone").hidden = s.mode !== "tone";
+    $("for-sweep").hidden = s.mode !== "sweep";
+    $("for-noise").hidden = s.mode !== "noise";
+    $("for-wave").hidden = s.mode === "noise";
+    $("keys").hidden = s.mode !== "tone" || touch;
+    $("vol-out").textContent = vol + "%";
+    show();
+    facts();
+    caution();
+  }
+
+  function remember() {
+    try { history.replaceState(null, "", TONE.encode(s)); } catch (e) { /* some file:// pages */ }
+  }
+
+  /* ---- controls ---- */
+
+  var touch = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  function setFreq(f, from) {
+    s.f = f;
+    if (from !== freq) freq.value = f;
+    if (from !== slide) slide.value = TONE.toSlider(f);
+    error.textContent = "";
+    if (voice && !voice.sweep) glide(voice.src.frequency, f);
+    shape();
+    remember();
+  }
+
+  function choose(id, key, after) {
+    $(id).addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-v]");
+      if (!b || b.dataset.v === s[key]) return;
+      s[key] = b.dataset.v;
+      pressed(id, s[key]);
+      shape();
+      remember();
+      after();
+    });
+  }
+
+  choose("mode", "mode", restart);
+  choose("scale", "scale", function () { if (voice && voice.sweep) restart(); });
+  choose("noise", "noise", restart);
+  choose("wave", "wave", restart);
+  choose("ch", "ch", function () {
+    if (!ctx) return;
+    glide(left.gain, s.ch === "right" ? 0 : 1);
+    glide(right.gain, s.ch === "left" ? 0 : 1);
+  });
+
+  play.addEventListener("click", toggle);
+
+  $("vol").addEventListener("input", function () {
+    vol = Number(this.value);
+    if (ctx) master.gain.setTargetAtTime(TONE.level(vol), ctx.currentTime, 0.03);
+    shape();
+  });
+
+  freq.addEventListener("input", function () {
+    var f = Number(freq.value);
+    if (freq.value.trim() === "") return;
+    if (TONE.valid(f)) setFreq(f, freq);
+    else error.textContent = "Pitch: pick a number from 1 to 22,000.";
+  });
+  freq.addEventListener("change", function () { freq.value = s.f; error.textContent = ""; });
+
+  slide.addEventListener("input", function () { setFreq(TONE.fromSlider(Number(slide.value)), slide); });
+
+  document.querySelector(".tune").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-by]");
+    if (b) setFreq(TONE.nudge(s.f, Number(b.dataset.by)));
+  });
+
+  // Sweep numbers take effect when you leave the box, so a half-typed number
+  // does not restart a sweep that is playing.
+  [["from", "from", TONE.valid, "From"], ["to", "to", TONE.valid, "To"],
+   ["secs", "secs", TONE.validSecs, "Seconds"]].forEach(function (d) {
+    var el = $(d[0]);
+    el.addEventListener("change", function () {
+      var v = Number(el.value);
+      if (el.value.trim() === "" || !d[2](v)) {
+        error.textContent = d[3] + ": pick a number from " + (d[0] === "secs" ? "1 to 600." : "1 to 22,000.");
+        el.value = s[d[1]];
+        return;
+      }
+      error.textContent = "";
+      s[d[1]] = v;
+      shape();
+      remember();
+      if (voice && voice.sweep) restart();
+    });
+  });
+
+  $("form").addEventListener("submit", function (e) { e.preventDefault(); });
+
+  $("link").addEventListener("click", function () {
+    var btn = this, url = location.href.split("#")[0] + TONE.encode(s);
+    var done = function () {
+      btn.textContent = "Copied";
+      setTimeout(function () { btn.textContent = "Copy link"; }, 1600);
+    };
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, function () {
+      error.textContent = "Could not copy. The link is in the address bar.";
+    });
+    remember();
+  });
+
+  // Space plays and stops. Arrows nudge the pitch, unless a box or slider has
+  // the keys for itself. A focused button keeps Space, which presses it.
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var el = e.target, tag = el && el.tagName;
+    var range = tag === "INPUT" && el.type === "range";
+    var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (el && el.isContentEditable);
+    if (e.key === " ") {
+      if ((typing && !range) || tag === "BUTTON" || tag === "SUMMARY" || tag === "A") return;
+      e.preventDefault();
+      toggle();
+      return;
+    }
+    var dir = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 }[e.key];
+    if (!dir || typing || s.mode !== "tone") return;
+    e.preventDefault();
+    setFreq(TONE.nudge(s.f, dir * (e.shiftKey ? 0.1 : 1)));
+  });
+
+  window.addEventListener("hashchange", function () {
+    s = TONE.decode(location.hash);
+    sync();
+    restart();
+  });
+
+  // After shell.js has taken its copy for the Save button, so a saved page
+  // opens with the defaults rather than whatever link this visit came from.
+  function init() {
+    $("ios").hidden = !ios;
+    s = TONE.decode(location.hash);
+    sync();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+</script>
+
+</body>
+</html>
