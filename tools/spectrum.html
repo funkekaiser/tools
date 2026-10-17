@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Frequency analyser</title>
+<meta name="description" content="See the pitches your microphone hears as a live spectrum, find the frequency and musical note of a hum or whine, and watch it over time. Free, no ads, no tracking, nothing uploaded.">
+<link rel="stylesheet" href="../shared/base.css">
+<script src="../shared/shell.js"></script>
+<script type="application/json" id="tool">
+{
+  "title": "Frequency analyser",
+  "blurb": "Listens through your microphone and shows which pitches are loudest, live, with the frequency and musical note of the strongest one.",
+  "tags": ["sound", "audio", "music"],
+  "keywords": ["frequency analyzer", "spectrum analyzer", "spectrum analyser", "fft", "spectrogram", "waterfall", "hz", "hertz", "pitch", "tuner", "note", "hum", "whine", "buzz", "rattle", "resonance", "tinnitus", "speaker test", "room response", "microphone", "decibel", "db"]
+}
+</script>
+<style>
+  .scope { margin-top: 20px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; }
+  .big { font-size: clamp(26px, 5vw, 34px); font-weight: 650; letter-spacing: -0.02em;
+         line-height: 1.15; margin: 0; font-variant-numeric: tabular-nums; }
+  #say { margin: 2px 0 0; color: var(--dim); }
+  #start { font-weight: 600; }
+
+  .ctl .tip-inline { max-width: 46ch; }
+  #plot { display: block; width: 100%; height: clamp(220px, 38vh, 400px); touch-action: manipulation; }
+  .opts { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+  .opts fieldset { flex: 1 1 240px; }
+  .err:empty { display: none; }
+  .err { margin: 0; }
+
+  /* Full screen: the API where there is one, and this class either way, because
+     an iPhone will not put anything but a video into real full screen. */
+  .scope.full { position: fixed; inset: 0; z-index: 10; margin: 0; border: 0; border-radius: 0;
+                max-width: none; height: 100vh; height: 100dvh; background: var(--bg);
+                padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+                         max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+  /* height 0 so the canvas's own pixel size never feeds back into its layout */
+  .scope.full #plot { flex: 1 1 0; height: 0; min-height: 0; }
+  .scope.full .tip-inline { display: none; }
+
+  details { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 20px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 14px; }
+  summary:hover { color: var(--acc); }
+  .facts { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px;
+           font-size: 14px; font-family: var(--mono); }
+  .facts dt { color: var(--dim); }
+  .facts dd { margin: 0; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Frequency analyser</div>
+  <div class="spacer"></div>
+</header>
+
+<main>
+  <h1 style="view-transition-name:tool-spectrum">Frequency analyser</h1>
+  <p class="lede">Press Start listening and allow the microphone to see which pitches are loudest.</p>
+
+  <section class="scope panel" id="scope" aria-labelledby="peak-h">
+    <div class="top">
+      <div>
+        <h2 id="peak-h" class="sr">The loudest pitch</h2>
+        <p class="big" id="hz">—</p>
+        <p id="say">Nothing heard yet.</p>
+      </div>
+      <!-- the extra div keeps touch-screen tip lines out of the .top row -->
+      <div class="ctl"><div class="actions">
+        <button type="button" id="start" data-primary
+          data-tip="Asks to use your microphone, then shows what it hears as it happens.">Start listening</button>
+        <button type="button" id="hold" aria-pressed="false" disabled
+          data-tip="Keeps a faint line at the loudest each pitch has reached, so a short sound leaves a mark. Press again to clear it.">Hold peaks</button>
+        <button type="button" id="freeze" aria-pressed="false" disabled
+          data-tip="Stops the picture so you can read it. Press again to carry on.">Freeze</button>
+        <button type="button" id="full"
+          data-tip="Fills the screen with the picture. Turn a phone sideways for a wider view.">Full screen</button>
+      </div></div>
+    </div>
+
+    <canvas id="plot" role="img" aria-label="Spectrum: how loud each pitch is, low pitches on the left, high on the right."></canvas>
+    <p id="error" class="err" role="alert"></p>
+
+    <div class="opts">
+      <fieldset>
+        <legend class="label" id="view-label">What should it show?</legend>
+        <div class="seg" role="group" aria-labelledby="view-label" data-tip-anchor>
+          <button type="button" data-view="now" aria-pressed="true"
+            data-tip="How loud each pitch is right now: low pitches on the left, high on the right.">Right now</button>
+          <button type="button" data-view="time" aria-pressed="false"
+            data-tip="The last few seconds scrolling down, newest at the top. Brighter is louder, so a steady hum is a straight line.">Over time</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend class="label" id="size-label">Speed or detail?</legend>
+        <div class="seg" role="group" aria-labelledby="size-label" data-tip-anchor>
+          <button type="button" data-size="4096" aria-pressed="false"
+            data-tip="Follows changes almost at once, but pitches closer than about 12 Hz blur together and low notes are rough.">Quick</button>
+          <button type="button" data-size="16384" aria-pressed="true"
+            data-tip="Reacts in about a third of a second and separates pitches about 3 Hz apart. Right for most hums and whines.">Balanced</button>
+          <button type="button" data-size="32768" aria-pressed="false"
+            data-tip="Separates pitches under 1.5 Hz apart, for deep hums and tuning, but takes most of a second to react.">Detailed</button>
+        </div>
+      </fieldset>
+    </div>
+  </section>
+  <p class="note" style="margin-top:12px">Phone and laptop microphones hear little below about 50 Hz, the shaded strip, so a very deep hum may barely show.</p>
+  <p class="sr" id="status" role="status"></p>
+
+  <details>
+    <summary>Technical details</summary>
+    <dl class="facts">
+      <dt>peak</dt><dd id="s-peak">—</dd>
+      <dt>note</dt><dd id="s-note">—</dd>
+      <dt>sample rate</dt><dd id="s-rate">—</dd>
+      <dt>FFT size</dt><dd id="s-fft">—</dd>
+      <dt>resolution</dt><dd id="s-res">—</dd>
+      <dt>window</dt><dd id="s-win">—</dd>
+      <dt>processing</dt><dd id="s-proc">—</dd>
+    </dl>
+    <p class="note" style="margin-top:12px">The microphone is opened with echo cancellation, noise
+      suppression and automatic volume turned off, so the browser does not reshape the sound; the line
+      above says what it actually agreed to. Each picture is a Fourier transform (FFT) of the latest
+      samples through a Blackman window. A bigger FFT separates close pitches better but covers a longer
+      stretch of time, so it reacts more slowly. The peak is refined between FFT steps by fitting a
+      parabola through the loudest three, which makes it far more precise than one step. Levels are dB
+      below the loudest sound the microphone can record (dBFS), not sound pressure, so they compare
+      sounds rather than measure them. The note is named against A4 = 440 Hz, and a cent is a hundredth
+      of a semitone.</p>
+  </details>
+</main>
+
+<div class="savebar">
+  <button type="button" id="save"
+    data-tip="Downloads this page as one file that keeps working with no internet, even if this website disappears.">Save this tool</button>
+  <p class="hint">Keep your own copy of this page — or press <kbd id="savekey">⌘ S</kbd>.</p>
+</div>
+
+<footer class="foot">
+  <p class="promise">Everything happens on your device. Nothing you type is sent or saved anywhere.</p>
+  <div class="links">
+    <span>Free and <a href="https://github.com/funkekaiser/tools">open source</a>.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+  </div>
+</footer>
+
+<script>
+/* The arithmetic. Kept apart from the page so scripts/test-spectrum.mjs can lift
+   it out and check it against known tones: a peak a few hertz off looks exactly
+   like a right one. Input is what AnalyserNode.getFloatFrequencyData gives: one
+   dB value per FFT bin, bin i centred on i * sampleRate / fftSize. */
+var FA = (function () {
+  "use strict";
+
+  var LO = 20, HI = 20000;
+  var NOTES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+
+  // Where a frequency sits across a log axis w wide, and back.
+  function x(hz, w) { return w * Math.log(hz / LO) / Math.log(HI / LO); }
+  function hzAt(px, w) { return LO * Math.pow(HI / LO, px / w); }
+
+  // The loudest bin between lo and hi, refined by a parabola through it and its
+  // neighbours. On dB values through a Blackman window that lands within a few
+  // hundredths of a bin of the true tone.
+  function peak(db, rate, size, lo, hi) {
+    var bin = rate / size;
+    var from = Math.max(1, Math.ceil(lo / bin));
+    var to = Math.min(db.length - 2, Math.floor(hi / bin));
+    var at = -1, best = -Infinity;
+    for (var i = from; i <= to; i++) if (db[i] > best) { best = db[i]; at = i; }
+    if (at < 0 || !isFinite(best)) return null;
+    var a = db[at - 1], b = best, c = db[at + 1], p = 0;
+    if (isFinite(a) && isFinite(c)) {
+      var d = a - 2 * b + c;
+      if (d < 0) p = Math.max(-0.5, Math.min(0.5, 0.5 * (a - c) / d));
+    }
+    return { hz: (at + p) * bin, db: p ? b - 0.25 * (a - c) * p : b, bin: at };
+  }
+
+  function median(db, rate, size, lo, hi) {
+    var bin = rate / size;
+    var s = Array.prototype.slice.call(db, Math.max(1, Math.ceil(lo / bin)),
+      Math.min(db.length, Math.floor(hi / bin) + 1)).sort(function (p, q) { return p - q; });
+    return s.length ? s[s.length >> 1] : -Infinity;
+  }
+
+  // Is there a pitch worth naming, or only background? It has to be loud enough
+  // to be more than the microphone's own hiss, and stand well clear of the rest.
+  var LOUD = -85, CLEAR = 15;
+  function heard(pk, floor) {
+    return !!pk && pk.db > LOUD && pk.db - floor > CLEAR;
+  }
+
+  function note(hz, a4) {
+    var m = 69 + 12 * Math.log2(hz / (a4 || 440));
+    var n = Math.round(m);
+    return { name: NOTES[((n % 12) + 12) % 12], octave: Math.floor(n / 12) - 1,
+             cents: Math.round((m - n) * 100), midi: n };
+  }
+
+  function tune(cents) {
+    if (cents === 0) return "in tune";
+    var n = Math.abs(cents);
+    return n + (n === 1 ? " cent " : " cents ") + (cents > 0 ? "sharp" : "flat");
+  }
+
+  function formatHz(hz) {
+    if (hz < 100) return hz.toFixed(1) + " Hz";
+    return Math.round(hz).toLocaleString("en-GB") + " Hz";
+  }
+
+  // One dB value per pixel column of a log axis w wide. Where a column is
+  // narrower than a bin (the low end) it reads between bins along the same
+  // parabola the peak uses, so the curve tops out where the readout says; where
+  // a column spans several bins (the high end) it takes the loudest, so a narrow
+  // tone never falls between columns and disappears.
+  function columns(db, bin, w, out) {
+    if (!out || out.length !== w) out = new Float32Array(w);
+    var last = db.length - 1, k = Math.log(HI / LO);
+    for (var i = 0; i < w; i++) {
+      var b0 = LO * Math.exp(k * i / w) / bin, b1 = LO * Math.exp(k * (i + 1) / w) / bin, v;
+      if (b1 - b0 < 1) {
+        // centred on the louder of the two bins either side, so around a peak
+        // every column reads off the peak's own parabola
+        var m = (b0 + b1) / 2, j = Math.max(1, Math.min(last - 2, Math.floor(m)));
+        if (!(db[j] >= db[j + 1])) j++;
+        var t = m - j;
+        var a = db[j - 1], b = db[j], c = db[j + 1];
+        v = isFinite(a) && isFinite(b) && isFinite(c)
+          ? b + 0.5 * t * (c - a) + 0.5 * t * t * (a - 2 * b + c) : b;
+      } else {
+        v = -Infinity;
+        for (var q = Math.ceil(b0), e = Math.min(last, Math.floor(b1)); q <= e; q++) if (db[q] > v) v = db[q];
+      }
+      out[i] = isFinite(v) ? v : -200;
+    }
+    return out;
+  }
+
+  function hold(held, now) {
+    for (var i = 0; i < now.length; i++) if (now[i] > held[i]) held[i] = now[i];
+    return held;
+  }
+
+  return { LO: LO, HI: HI, x: x, hzAt: hzAt, peak: peak, median: median, heard: heard,
+           note: note, tune: tune, formatHz: formatHz, columns: columns, hold: hold };
+})();
+
+(function () {
+  "use strict";
+
+  var DB_MIN = -120, DB_MAX = -10;        // the spectrum's vertical range
+  var HEAT_MIN = -110, HEAT_MAX = -30;    // dark to bright in the over-time view
+  var TICKS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+  var MIC_LOW = 50;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var scope = $("scope"), cv = $("plot"), g = cv.getContext("2d");
+  var startBtn = $("start"), holdBtn = $("hold"), freezeBtn = $("freeze"), fullBtn = $("full");
+  var css = getComputedStyle(document.documentElement);
+  var colour = function (name) { return css.getPropertyValue(name).trim(); };
+
+  var view = "now", size = 16384, frozen = false, holding = false;
+  var ac = null, stream = null, an = null, raf = 0;
+  var db = null, cols = null, held = null, pk = null, lastText = 0;
+  var W = 0, H = 0, dpr = 1, L = 46, R = 8, T = 8, B = 22;
+  var wf = document.createElement("canvas"), wg = wf.getContext("2d"), row = null;
+  var lut = null, lutKey = "";
+
+  function say(big, line) { $("hz").textContent = big; $("say").textContent = line; }
+
+  /* ---------- the microphone ---------- */
+
+  function fail(e) {
+    var name = e && e.name;
+    $("error").textContent =
+      name === "NotAllowedError" || name === "SecurityError"
+        ? "The microphone is blocked for this page. Allow it in your browser's settings for this site (on an iPhone: Settings, Apps, Safari, Microphone), then press Start listening again."
+      : name === "NotFoundError" || name === "OverconstrainedError"
+        ? "No microphone was found. Plug one in or switch it on, then try again."
+      : name === "NotReadableError" || name === "AbortError"
+        ? "The microphone is busy or switched off. Close anything else using it, then try again."
+      : name === "Unsupported"
+        ? "This browser will not let the page use the microphone. Open it over https, in a current Safari, Chrome or Firefox."
+        : "The microphone could not be started" + (name ? " (" + name + ")." : ".");
+    stop();
+  }
+
+  function start() {
+    $("error").textContent = "";
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return fail({ name: "Unsupported" });
+    // Made inside the tap, before anything is awaited: Safari only lets sound
+    // start from a gesture.
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return fail({ name: "Unsupported" });
+    ac = new AC();
+    if (ac.resume) ac.resume();
+    startBtn.disabled = true;
+    say("—", "Waiting for the microphone…");
+    navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    }).then(function (s) {
+      if (!ac) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
+      stream = s;
+      var track = s.getAudioTracks()[0];
+      track.addEventListener("ended", function () { fail({ name: "NotReadableError" }); });
+      var src = ac.createMediaStreamSource(s);
+      an = ac.createAnalyser();
+      an.smoothingTimeConstant = 0.5;
+      setSize(size);
+      // Safari only runs a graph that reaches the speakers, so the analyser
+      // feeds them through a silent gain. Nothing is heard.
+      var mute = ac.createGain();
+      mute.gain.value = 0;
+      src.connect(an); an.connect(mute); mute.connect(ac.destination);
+
+      var st = track.getSettings ? track.getSettings() : {};
+      var off = function (v) { return v === undefined ? "?" : v ? "on" : "off"; };
+      $("s-proc").textContent = "echo cancellation " + off(st.echoCancellation) + ", noise suppression " +
+        off(st.noiseSuppression) + ", auto gain " + off(st.autoGainControl);
+      $("s-rate").textContent = ac.sampleRate.toLocaleString("en-GB") + " Hz";
+
+      startBtn.textContent = "Stop listening";
+      startBtn.disabled = false;
+      holdBtn.disabled = freezeBtn.disabled = false;
+      $("status").textContent = "Listening.";
+      say("—", "Listening…");
+      loop();
+    }, fail);
+  }
+
+  function stop() {
+    cancelAnimationFrame(raf); raf = 0;
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+    if (ac && ac.close) ac.close();
+    ac = stream = an = null;
+    frozen = false;
+    freezeBtn.setAttribute("aria-pressed", "false");
+    holdBtn.disabled = freezeBtn.disabled = true;
+    startBtn.disabled = false;
+    startBtn.textContent = "Start listening";
+    if ($("error").textContent) say("—", "Not listening.");
+    else say($("hz").textContent, "Stopped. Press Start listening to carry on.");
+    $("status").textContent = "Stopped.";
+    draw();
+  }
+
+  function setSize(n) {
+    size = n;
+    if (!an) return;
+    an.fftSize = n;
+    db = new Float32Array(an.frequencyBinCount);
+    held = null;
+    var rate = ac.sampleRate, bin = rate / n;
+    $("s-fft").textContent = n.toLocaleString("en-GB") + " samples";
+    $("s-res").textContent = bin.toFixed(2) + " Hz per step";
+    $("s-win").textContent = (n / rate).toFixed(2) + " s";
+  }
+
+  /* ---------- each frame ---------- */
+
+  function loop() {
+    raf = requestAnimationFrame(loop);
+    if (!an || frozen) return;
+    an.getFloatFrequencyData(db);
+    var rate = ac.sampleRate, top = Math.min(FA.HI, rate / 2);
+    var pw = Math.max(1, Math.round((W - L - R) * dpr));
+    cols = FA.columns(db, rate / size, pw, cols);
+    if (holding) held = held && held.length === pw ? FA.hold(held, cols) : Float32Array.from(cols);
+    pushRow(cols);
+    pk = FA.peak(db, rate, size, FA.LO, top);
+
+    var now = performance.now();
+    if (now - lastText > 200) {
+      lastText = now;
+      if (pk && FA.heard(pk, FA.median(db, rate, size, FA.LO, top))) {
+        var n = FA.note(pk.hz);
+        say(FA.formatHz(pk.hz), "Nearest note " + n.name + n.octave + ", " + FA.tune(n.cents) + ".");
+        $("s-peak").textContent = pk.hz.toFixed(2) + " Hz at " + pk.db.toFixed(1) + " dBFS";
+        $("s-note").textContent = n.name + n.octave + " " + (n.cents >= 0 ? "+" : "−") + Math.abs(n.cents) + " cents";
+      } else {
+        pk = null;
+        say("—", "Too quiet to pick out one pitch.");
+      }
+    }
+    draw();
+  }
+
+  /* ---------- drawing ---------- */
+
+  function rgb(s) {
+    s = s.replace("#", "");
+    if (s.length === 3) s = s.replace(/./g, "$&$&");
+    var n = parseInt(s, 16);
+    return [n >> 16 & 255, n >> 8 & 255, n & 255];
+  }
+
+  // Background to accent to ink, so the heat map uses the page's own colours
+  // and works in both themes.
+  function heat() {
+    var key = colour("--bg") + colour("--acc") + colour("--ink");
+    if (key === lutKey) return lut;
+    var a = rgb(colour("--bg")), b = rgb(colour("--acc")), c = rgb(colour("--ink"));
+    lut = new Uint8ClampedArray(256 * 3);
+    for (var i = 0; i < 256; i++) {
+      var t = i / 255, p = t < 0.6 ? a : b, q = t < 0.6 ? b : c, u = t < 0.6 ? t / 0.6 : (t - 0.6) / 0.4;
+      for (var k = 0; k < 3; k++) lut[i * 3 + k] = p[k] + (q[k] - p[k]) * u;
+    }
+    lutKey = key;
+    return lut;
+  }
+
+  function pushRow(c) {
+    if (wf.width !== c.length || !row) return;
+    var map = heat(), d = row.data;
+    for (var i = 0; i < c.length; i++) {
+      var t = Math.round(255 * Math.max(0, Math.min(1, (c[i] - HEAT_MIN) / (HEAT_MAX - HEAT_MIN))));
+      d[i * 4] = map[t * 3]; d[i * 4 + 1] = map[t * 3 + 1]; d[i * 4 + 2] = map[t * 3 + 2]; d[i * 4 + 3] = 255;
+    }
+    wg.drawImage(wf, 0, 1);
+    wg.putImageData(row, 0, 0);
+  }
+
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    var r = cv.getBoundingClientRect();
+    W = r.width; H = r.height;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    var pw = Math.max(1, Math.round((W - L - R) * dpr)), ph = Math.max(1, Math.round((H - T - B) * dpr));
+    if (wf.width !== pw || wf.height !== ph) {
+      var old = document.createElement("canvas");
+      old.width = wf.width; old.height = wf.height;
+      old.getContext("2d").drawImage(wf, 0, 0);
+      wf.width = pw; wf.height = ph;
+      wg.fillStyle = colour("--bg"); wg.fillRect(0, 0, pw, ph);
+      wg.drawImage(old, 0, 0, pw, ph);
+      row = wg.createImageData(pw, 1);
+      held = null;
+    }
+    draw();
+  }
+
+  function draw() {
+    if (!W) return;
+    var pw = W - L - R, ph = H - T - B;
+    var ink = colour("--ink"), dim = colour("--dim"), line = colour("--line"), acc = colour("--acc");
+    var yOf = function (v) { return T + ph * (DB_MAX - Math.max(DB_MIN, Math.min(DB_MAX, v))) / (DB_MAX - DB_MIN); };
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+    g.font = "11px " + colour("--sans");
+    g.lineWidth = 1;
+
+    if (view === "time") {
+      g.imageSmoothingEnabled = false;
+      g.drawImage(wf, L, T, pw, ph);
+    } else {
+      g.fillStyle = colour("--sunk");
+      g.fillRect(L, T, FA.x(MIC_LOW, pw), ph);
+    }
+
+    // grid and labels
+    g.strokeStyle = line;
+    g.fillStyle = dim;
+    g.textAlign = "center"; g.textBaseline = "top";
+    var narrow = pw < 420;
+    TICKS.forEach(function (f) {
+      var x = Math.round(L + FA.x(f, pw)) + 0.5;
+      g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke();
+      if (narrow && /^5/.test(String(f))) return;
+      var t = f >= 1000 ? f / 1000 + "k" : String(f);
+      g.textAlign = f === TICKS[0] ? "left" : f === TICKS[TICKS.length - 1] ? "right" : "center";
+      g.fillText(t, Math.max(L, Math.min(L + pw, x)), T + ph + 6);
+    });
+    g.textAlign = "right"; g.textBaseline = "middle";
+    if (view === "now") {
+      for (var v = -20; v >= -100; v -= 20) {
+        var y = Math.round(yOf(v)) + 0.5;
+        g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke();
+        g.fillText(v === -20 ? "−20 dB" : "−" + -v, L - 6, y);
+      }
+    } else {
+      g.textBaseline = "top";
+      g.fillText("now", L - 6, T);
+    }
+    g.textAlign = "right"; g.textBaseline = "top";
+    g.fillText("Hz", L - 6, T + ph + 6);
+
+    if (view === "now" && cols) {
+      var step = 1 / dpr;
+      if (held && holding) {
+        g.strokeStyle = dim;
+        g.beginPath();
+        for (var i = 0; i < held.length; i++) g.lineTo(L + i * step, yOf(held[i]));
+        g.stroke();
+      }
+      g.beginPath();
+      g.moveTo(L, T + ph);
+      for (var j = 0; j < cols.length; j++) g.lineTo(L + j * step, yOf(cols[j]));
+      g.lineTo(L + pw, T + ph);
+      g.globalAlpha = 0.14; g.fillStyle = acc; g.fill(); g.globalAlpha = 1;
+      g.strokeStyle = acc; g.lineWidth = 1.5; g.stroke(); g.lineWidth = 1;
+      if (pk && $("hz").textContent !== "—") {
+        g.fillStyle = ink;
+        g.beginPath();
+        g.arc(L + FA.x(pk.hz, pw), yOf(pk.db), 4, 0, 2 * Math.PI);
+        g.fill();
+      }
+    }
+  }
+
+  /* ---------- controls ---------- */
+
+  function choose(group, btn) {
+    Array.prototype.forEach.call(group.querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", String(b === btn));
+    });
+  }
+
+  startBtn.addEventListener("click", function () { if (ac) stop(); else start(); });
+
+  holdBtn.addEventListener("click", function () {
+    holding = !holding;
+    held = null;
+    holdBtn.setAttribute("aria-pressed", String(holding));
+    draw();
+  });
+
+  freezeBtn.addEventListener("click", function () {
+    frozen = !frozen;
+    freezeBtn.setAttribute("aria-pressed", String(frozen));
+    $("status").textContent = frozen ? "Frozen at " + $("hz").textContent + "." : "Listening.";
+  });
+
+  document.querySelector("[data-view]").parentNode.addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-view]");
+    if (!btn) return;
+    choose(btn.parentNode, btn);
+    view = btn.dataset.view;
+    cv.setAttribute("aria-label", view === "now"
+      ? "Spectrum: how loud each pitch is, low pitches on the left, high on the right."
+      : "Pitches over time: newest at the top, low pitches on the left, brighter is louder.");
+    draw();
+  });
+
+  document.querySelector("[data-size]").parentNode.addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-size]");
+    if (!btn) return;
+    choose(btn.parentNode, btn);
+    setSize(Number(btn.dataset.size));
+  });
+
+  // Full screen
+  var fsEl = function () { return document.fullscreenElement || document.webkitFullscreenElement; };
+  function setFull(on) {
+    scope.classList.toggle("full", on);
+    document.documentElement.style.overflow = on ? "hidden" : "";
+    fullBtn.textContent = on ? "Exit full screen" : "Full screen";
+    resize();
+  }
+  fullBtn.addEventListener("click", function () {
+    var on = !scope.classList.contains("full");
+    if (on) {
+      var req = scope.requestFullscreen || scope.webkitRequestFullscreen;
+      if (req) { try { var p = req.call(scope); if (p && p.catch) p.catch(function () {}); } catch (e) { /* the class still works */ } }
+    } else if (fsEl()) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    }
+    setFull(on);
+  });
+  ["fullscreenchange", "webkitfullscreenchange"].forEach(function (ev) {
+    document.addEventListener(ev, function () { if (!fsEl() && scope.classList.contains("full")) setFull(false); });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && scope.classList.contains("full") && !fsEl()) setFull(false);
+  });
+
+  // A phone that goes to sleep or switches app suspends the sound; pick it up again.
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && ac && ac.state !== "running" && ac.resume) ac.resume();
+  });
+
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(cv);
+  else window.addEventListener("resize", resize);
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  resize();
+})();
+</script>
+
+</body>
+</html>
