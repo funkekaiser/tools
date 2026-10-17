@@ -137,6 +137,7 @@ scripts/test-screen.mjs    checks the test patterns inside tools/screen.html
 scripts/test-photo.mjs     checks the metadata stripping and size fitting in tools/photo.html
 scripts/test-words.mjs     checks the counting and the limits inside tools/words.html
 scripts/test-random.mjs    checks the fair picking inside tools/random.html
+scripts/test-spectrum.mjs  checks the peak, note and axis maths inside tools/spectrum.html
 .github/workflows/build-tool.yml   labelling an issue `build` has Claude build it as a PR
 dist/                      generated, gitignored, what Cloudflare serves
 drafts/                    unfinished experiments, not published
@@ -156,6 +157,7 @@ node scripts/test-screen.mjs           # verify the screen test patterns
 node scripts/test-photo.mjs            # verify the photo stripping and size fitting
 node scripts/test-words.mjs            # verify the word, character and limit counts
 node scripts/test-random.mjs           # verify the random picker is fair and includes both ends
+node scripts/test-spectrum.mjs         # verify the frequency analyser finds known tones to within a hertz
 python3 -m http.server 8000 -d dist    # serve the built site
 ```
 
@@ -186,4 +188,6 @@ a merge commit so the tool still lands as one `--no-ff` merge.
 Cloudflare Pages runs `node scripts/build.mjs` and serves `dist/`, giving
 `tools.jof.dev/<slug>/`. `_headers` is copied into `dist/` and sets a CSP with
 `default-src 'none'` and `connect-src 'none'`, so rule 2 is enforced by the browser
-rather than merely promised: a tool that tried to phone home would be blocked.
+rather than merely promised: a tool that tried to phone home would be blocked. Its
+`Permissions-Policy` turns the microphone off everywhere except `/spectrum/`, the one tool
+that listens; a new tool that needs a device gets its own block there in the same way.
