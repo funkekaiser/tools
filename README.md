@@ -59,7 +59,8 @@ placeholder between the comment markers with the real tool, and run the build.
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE). Vendored third-party code carries its own attribution in the
+Copyright (C) 2026 Jonathan Funke-Kaiser. Licensed under the GNU General Public License v3.0 or
+later; see [LICENSE](LICENSE). Vendored third-party code carries its own attribution in the
 file where it appears; the QR encoder credits [Project
 Nayuki](https://www.nayuki.io/page/qr-code-generator-library), whose reference
 implementation its Reed–Solomon and placement routines follow.
