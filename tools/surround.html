@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Surround sound test</title>
+<meta name="description" content="Check every speaker or earpiece plays from the right place, then send a sound round the room. For headphones, stereo, 5.1 and 7.1. Free, no ads, no tracking, nothing uploaded.">
+<link rel="stylesheet" href="../shared/base.css">
+<script src="../shared/shell.js"></script>
+<script type="application/json" id="tool">
+{
+  "title": "Surround sound test",
+  "blurb": "Play a sound from each speaker in turn, or send it circling round your head, to check headphones, stereo, 5.1 and 7.1 systems.",
+  "tags": ["audio", "sound"],
+  "keywords": ["surround", "5.1", "7.1", "stereo", "speaker", "speakers", "headphones", "channel", "channels", "left", "right", "centre", "center", "subwoofer", "lfe", "rear", "home cinema", "home theater", "spatial", "binaural", "hrtf", "3d audio", "test", "wiring"]
+}
+</script>
+<style>
+  .split { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 28px; align-items: start;
+           margin-top: 28px; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .field { margin-bottom: 18px; }
+  [hidden] { display: none !important; }
+  .seg button { padding-inline: 8px; }
+
+  input[type="range"] { display: block; width: 100%; margin: 10px 0 0; accent-color: var(--acc); }
+  .playrow { display: flex; gap: 16px; align-items: center; margin-bottom: 8px; }
+  .playrow .vol { flex: 1; }
+  .playrow input[type="range"] { margin: 0; }
+  #play { font-weight: 600; min-width: 6.5em; padding-block: 12px; }
+  #play.on { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
+  #keys, #ios { margin: 0 0 20px; }
+
+  .out { display: flex; flex-direction: column; gap: 14px; }
+  .room { position: relative; aspect-ratio: 1; width: 100%; max-width: 340px; margin: 0 auto; }
+  .room svg { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--dim); }
+  .spk { position: absolute; transform: translate(-50%, -50%); min-width: 3em; padding: 6px 8px;
+         font-size: 14px; font-weight: 600; text-align: center; }
+  .spk.lit { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
+  .orb { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%;
+         background: var(--acc); box-shadow: 0 0 0 6px color-mix(in srgb, var(--acc) 25%, transparent);
+         pointer-events: none; z-index: 1; }
+  .readout { text-align: center; }
+  .big { font-size: clamp(26px, 5vw, 36px); font-weight: 650; letter-spacing: -0.02em; line-height: 1.2;
+         margin: 0; }
+  .readout .note { margin: 8px 0 0; }
+  .warn { color: var(--warn); font-size: 14px; margin: 0; }
+
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 14px; }
+  summary:hover { color: var(--acc); }
+  .facts { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px;
+           font-size: 14px; font-family: var(--mono); }
+  .facts dt { color: var(--dim); }
+  .facts dd { margin: 0; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Surround sound test</div>
+  <div class="spacer"></div>
+</header>
+
+<main>
+  <h1 style="view-transition-name:tool-surround">Surround sound test</h1>
+  <p class="lede">Pick what you are listening on and press Play. Start quiet and turn it up slowly.</p>
+
+  <div class="split">
+    <form id="form" autocomplete="off">
+      <div class="playrow">
+        <button type="button" id="play" data-primary
+          data-tip="Starts and stops the sound. It fades in and out, so there is no click.">Play</button>
+        <div class="vol">
+          <label for="vol">Volume <span class="note" id="vol-out">20%</span></label>
+          <input type="range" id="vol" min="0" max="100" step="1" value="20"
+            data-tip="Starts low every time the page opens.">
+        </div>
+      </div>
+      <p class="note" id="keys"><kbd>Space</kbd> plays and stops.</p>
+      <p class="note" id="ios" hidden>No sound? Turn off silent mode, then press Play again.</p>
+
+      <fieldset class="field">
+        <legend class="label" id="layout-label">What are you listening on?</legend>
+        <div class="seg" role="group" aria-labelledby="layout-label" data-tip-anchor id="layout">
+          <button type="button" data-v="headphones" aria-pressed="true"
+            data-tip="Headphones or earbuds. The sound going round is shaped the way your ears hear direction, so it can seem to pass behind you.">Headphones</button>
+          <button type="button" data-v="stereo" aria-pressed="false"
+            data-tip="Two speakers, left and right, like a laptop, a pair of desk speakers or a TV.">2 speakers</button>
+          <button type="button" data-v="5.1" aria-pressed="false"
+            data-tip="Five speakers and a subwoofer: three at the front and two at the sides. Set your computer's sound output to 5.1 first.">5.1</button>
+          <button type="button" data-v="7.1" aria-pressed="false"
+            data-tip="Seven speakers and a subwoofer: three at the front, two at the sides and two behind. Set your computer's sound output to 7.1 first.">7.1</button>
+        </div>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend class="label" id="mode-label">What should it play?</legend>
+        <div class="seg" role="group" aria-labelledby="mode-label" data-tip-anchor id="mode">
+          <button type="button" data-v="walk" aria-pressed="true"
+            data-tip="Each speaker on its own, two seconds each, going round the room. Check the sound comes from the one that lights up.">Each in turn</button>
+          <button type="button" data-v="orb" aria-pressed="false"
+            data-tip="One sound that circles you, passing smoothly from speaker to speaker. Follow the dot with your ears.">Going round</button>
+        </div>
+      </fieldset>
+
+      <div id="for-orb" hidden>
+        <fieldset class="field">
+          <legend class="label" id="dir-label">Which way?</legend>
+          <div class="seg" role="group" aria-labelledby="dir-label" data-tip-anchor id="dir">
+            <button type="button" data-v="cw" aria-pressed="true"
+              data-tip="From the front towards your right, as a clock's hands turn seen from above.">Clockwise</button>
+            <button type="button" data-v="ccw" aria-pressed="false"
+              data-tip="From the front towards your left.">Anticlockwise</button>
+          </div>
+        </fieldset>
+        <div class="field">
+          <label for="speed">One turn every <span class="note" id="speed-out">8 seconds</span></label>
+          <input type="range" id="speed" min="2" max="20" step="1" value="8"
+            data-tip="Slower makes it easier to follow where the sound is. Faster makes the movement obvious.">
+        </div>
+      </div>
+
+      <fieldset class="field">
+        <legend class="label" id="sound-label">What should it sound like?</legend>
+        <div class="seg" role="group" aria-labelledby="sound-label" data-tip-anchor id="sound">
+          <button type="button" data-v="noise" aria-pressed="true"
+            data-tip="Short bursts of hiss. Every pitch at once makes it the easiest sound to place.">Hiss</button>
+          <button type="button" data-v="bell" aria-pressed="false"
+            data-tip="A soft bell, struck twice a second. Gentler to listen to, a little harder to place.">Bell</button>
+        </div>
+      </fieldset>
+    </form>
+
+    <section class="out" aria-labelledby="result-h">
+      <h2 id="result-h" class="sr">Where the sound is</h2>
+      <div class="panel">
+        <div class="room" id="room">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width="0.4" stroke-dasharray="1.5 1.5"/>
+            <text x="50" y="5" text-anchor="middle" font-size="4" fill="currentColor">front</text>
+            <circle cx="50" cy="50" r="6" fill="none" stroke="currentColor" stroke-width="0.8"/>
+            <path d="M47.5 44.6 L50 41 L52.5 44.6" fill="none" stroke="currentColor" stroke-width="0.8" stroke-linejoin="round"/>
+            <text x="50" y="62" text-anchor="middle" font-size="3.6" fill="currentColor">you</text>
+          </svg>
+          <div class="orb" id="orb" hidden></div>
+        </div>
+        <div class="readout">
+          <p class="big" id="big">Headphones</p>
+          <p class="note" id="line"></p>
+        </div>
+      </div>
+      <p class="sr" id="status" role="status"></p>
+      <p class="warn" id="warn" hidden></p>
+      <p id="error" class="err" role="alert"></p>
+
+      <details>
+        <summary>Technical details</summary>
+        <dl class="facts">
+          <dt>outputs offered</dt><dd id="s-max">—</dd>
+          <dt>channels used</dt><dd id="s-ch">—</dd>
+          <dt>channel order</dt><dd id="s-order">—</dd>
+          <dt>panning</dt><dd id="s-pan">—</dd>
+          <dt>level</dt><dd id="s-level">—</dd>
+          <dt>sample rate</dt><dd id="s-sr">—</dd>
+        </dl>
+        <p class="note" style="margin-top:12px">Each speaker is a separate channel sent straight to your
+          sound card, in the standard order shown above (LFE is the subwoofer). The browser can only send
+          as many channels as your computer's sound output is set to, which is what "outputs offered"
+          counts; change that setting and reload the page. Going round on speakers moves the sound
+          between neighbouring speakers at equal power. On headphones it uses your browser's
+          head-related transfer function (HRTF), which filters the sound the way the shape of a head and
+          ears does, so front and behind can be told apart. With two speakers the sound can only move
+          left and right. The subwoofer plays a 50 Hz tone and is left out of the circling sound.</p>
+      </details>
+    </section>
+  </div>
+</main>
+
+<div class="savebar">
+  <button type="button" id="save"
+    data-tip="Downloads this page as one file that keeps working with no internet, even if this website disappears.">Save this tool</button>
+  <p class="hint">Keep your own copy of this page — or press <kbd id="savekey">⌘ S</kbd>.</p>
+</div>
+
+<footer class="foot">
+  <p class="promise">Everything happens on your device. Nothing you type is sent or saved anywhere.</p>
+  <div class="links">
+    <span>Free and <a href="https://github.com/funkekaiser/tools">open source</a>.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+  </div>
+</footer>
+
+<script>
+/* The arithmetic: where each speaker is, which channel it is, how loud each
+   one is as the sound goes round, and the sounds themselves.
+   scripts/test-surround.mjs lifts this block out of the page and checks it,
+   so keep it free of the DOM and of Web Audio. */
+var SUR = (function () {
+  "use strict";
+
+  // Angles are degrees seen from above, 0 straight ahead, positive to the
+  // right. ch is the channel number in the standard order sound cards expect
+  // (Web Audio's for 5.1, and Windows' and Chrome's for 7.1); the subwoofer
+  // has no angle because low bass cannot be placed by ear.
+  var LAYOUTS = {
+    headphones: { name: "Headphones", channels: 2, speakers: [
+      { id: "L", name: "Left ear", ch: 0, angle: -90 },
+      { id: "R", name: "Right ear", ch: 1, angle: 90 }] },
+    stereo: { name: "Two speakers", channels: 2, speakers: [
+      { id: "L", name: "Left", ch: 0, angle: -30 },
+      { id: "R", name: "Right", ch: 1, angle: 30 }] },
+    "5.1": { name: "5.1 surround", channels: 6, speakers: [
+      { id: "L", name: "Front left", ch: 0, angle: -30 },
+      { id: "C", name: "Centre", ch: 2, angle: 0 },
+      { id: "R", name: "Front right", ch: 1, angle: 30 },
+      { id: "SR", name: "Surround right", ch: 5, angle: 110 },
+      { id: "SL", name: "Surround left", ch: 4, angle: -110 },
+      { id: "Sub", name: "Subwoofer", ch: 3, angle: null }] },
+    "7.1": { name: "7.1 surround", channels: 8, speakers: [
+      { id: "L", name: "Front left", ch: 0, angle: -30 },
+      { id: "C", name: "Centre", ch: 2, angle: 0 },
+      { id: "R", name: "Front right", ch: 1, angle: 30 },
+      { id: "SR", name: "Side right", ch: 7, angle: 90 },
+      { id: "BR", name: "Back right", ch: 5, angle: 150 },
+      { id: "BL", name: "Back left", ch: 4, angle: -150 },
+      { id: "SL", name: "Side left", ch: 6, angle: -90 },
+      { id: "Sub", name: "Subwoofer", ch: 3, angle: null }] }
+  };
+  var ORDER = ["headphones", "stereo", "5.1", "7.1"];
+
+  var STEP = 2;        // seconds on each speaker in "Each in turn"
+  var BEAT = 0.5;      // one burst or bell strike every half second
+  var ON = 0.35;       // how long a burst of hiss or bass lasts
+  var SUB_HZ = 50;
+  var NOISE_RMS = 0.18, BELL_PEAK = 0.5, SUB_PEAK = 0.5;
+
+  function wrap(a) { a = a % 360; return a < 0 ? a + 360 : a; }
+
+  // The speakers that sit on the circle, sorted round from straight ahead.
+  function ring(layout) {
+    return LAYOUTS[layout].speakers.filter(function (s) { return s.angle !== null; })
+      .slice().sort(function (a, b) { return wrap(a.angle) - wrap(b.angle); });
+  }
+
+  // How loud each channel is for a sound at this angle. Always constant power:
+  // the squares add up to 1, so it is equally loud wherever it is. With two
+  // speakers the sound can only go left and right, so behind folds onto the
+  // front. With more it is shared between the two neighbouring speakers. The
+  // subwoofer is never used. Headphones are not panned here: they go through
+  // the browser's HRTF, which uses position() below.
+  function gains(layout, angle) {
+    var L = LAYOUTS[layout], g = [], i;
+    for (i = 0; i < L.channels; i++) g.push(0);
+    var a = wrap(angle);
+    if (layout === "stereo" || layout === "headphones") {
+      var p = (Math.sin(a * Math.PI / 180) + 1) / 2;
+      g[0] = Math.cos(p * Math.PI / 2);
+      g[1] = Math.sin(p * Math.PI / 2);
+      return g;
+    }
+    var r = ring(layout), n = r.length;
+    for (i = 0; i < n; i++) {
+      var from = wrap(r[i].angle), to = wrap(r[(i + 1) % n].angle);
+      var span = wrap(to - from) || 360, into = wrap(a - from);
+      if (into < span) {
+        var u = into / span;
+        g[r[i].ch] = Math.cos(u * Math.PI / 2);
+        g[r[(i + 1) % n].ch] += Math.sin(u * Math.PI / 2);
+        return g;
+      }
+    }
+    return g;
+  }
+
+  // Where a sound at this angle sits for the browser's 3D panner: one metre
+  // away, with the listener facing -z, as Web Audio's listener does.
+  function position(angle) {
+    var a = angle * Math.PI / 180;
+    return { x: Math.sin(a), z: -Math.cos(a) };
+  }
+
+  // Where the sound is t seconds into a turn of secs seconds.
+  function orbAngle(t, secs, dir) { return wrap((dir === "ccw" ? -360 : 360) * t / secs); }
+
+  // Which speaker, by place in the layout's list, is playing t seconds into
+  // "Each in turn".
+  function walkAt(layout, t) {
+    var n = LAYOUTS[layout].speakers.length;
+    return Math.floor(Math.max(0, t) / STEP) % n;
+  }
+
+  // One turn of panning, as a curve of `points` steps per channel, for
+  // AudioParam.setValueCurveAtTime. Both ends are included, so a curve starts
+  // and finishes straight ahead.
+  function turn(layout, secs, dir, points) {
+    var L = LAYOUTS[layout], out = [], i, c;
+    for (c = 0; c < L.channels; c++) out.push(new Float32Array(points + 1));
+    for (i = 0; i <= points; i++) {
+      var g = gains(layout, orbAngle(secs * i / points, secs, dir));
+      for (c = 0; c < L.channels; c++) out[c][i] = g[c];
+    }
+    return out;
+  }
+
+  // A smooth rise and fall at the edges of each burst, so nothing clicks.
+  function edge(t, len, rise, fall) {
+    if (t < 0 || t >= len) return 0;
+    if (t < rise) return 0.5 - 0.5 * Math.cos(Math.PI * t / rise);
+    if (t > len - fall) return 0.5 - 0.5 * Math.cos(Math.PI * (len - t) / fall);
+    return 1;
+  }
+
+  // `secs` seconds of sound that loops without a seam: every beat starts from
+  // silence and has died away before the next. "noise" is bursts of pink
+  // noise (Paul Kellet's filter over white), "bell" a struck tone with three
+  // partials, "sub" bursts of a low sine for the subwoofer.
+  function pulses(kind, rate, secs, rand) {
+    var n = Math.round(rate * secs), out = new Float32Array(n), beat = Math.round(rate * BEAT);
+    var b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, i, w, p, t, sum = 0, count = 0;
+    for (i = 0; i < n; i++) {
+      t = (i % beat) / rate;
+      if (kind === "noise") {
+        w = rand() * 2 - 1;
+        b0 = 0.99886 * b0 + w * 0.0555179;
+        b1 = 0.99332 * b1 + w * 0.0750759;
+        b2 = 0.96900 * b2 + w * 0.1538520;
+        b3 = 0.86650 * b3 + w * 0.3104856;
+        b4 = 0.55000 * b4 + w * 0.5329522;
+        b5 = -0.7616 * b5 - w * 0.0168980;
+        p = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362;
+        b6 = w * 0.115926;
+        out[i] = p * edge(t, ON, 0.01, 0.06);
+        if (t >= 0.01 && t < ON - 0.06) { sum += p * p; count++; }
+      } else if (kind === "bell") {
+        out[i] = BELL_PEAK * edge(t, BEAT, 0.002, 0.05) * (
+          0.62 * Math.exp(-t * 7) * Math.sin(2 * Math.PI * 880 * t) +
+          0.26 * Math.exp(-t * 12) * Math.sin(2 * Math.PI * 2429 * t) +
+          0.12 * Math.exp(-t * 20) * Math.sin(2 * Math.PI * 4752 * t));
+      } else {
+        out[i] = SUB_PEAK * edge(t, ON, 0.02, 0.08) * Math.sin(2 * Math.PI * SUB_HZ * t);
+      }
+    }
+    if (kind === "noise") {
+      var k = NOISE_RMS / Math.sqrt(sum / count);
+      for (i = 0; i < n; i++) out[i] *= k;
+    }
+    return out;
+  }
+
+  // Volume slider 0..100 to a gain, squared like the tone generator's.
+  function level(vol) { return Math.pow(vol / 100, 2); }
+
+  // The layout to start on: the biggest one the sound output can carry,
+  // otherwise headphones.
+  function suggest(outputs) { return outputs >= 8 ? "7.1" : outputs >= 6 ? "5.1" : "headphones"; }
+
+  // The channel names in channel order, for the technical details.
+  function order(layout) {
+    var L = LAYOUTS[layout], names = [];
+    L.speakers.forEach(function (s) { names[s.ch] = s.id === "Sub" ? "LFE" : s.id; });
+    return names.join(" ");
+  }
+
+  return { LAYOUTS: LAYOUTS, ORDER: ORDER, STEP: STEP, BEAT: BEAT, SUB_HZ: SUB_HZ, NOISE_RMS: NOISE_RMS,
+           wrap: wrap, ring: ring, gains: gains, position: position, orbAngle: orbAngle, walkAt: walkAt,
+           turn: turn, pulses: pulses, level: level, suggest: suggest, order: order };
+})();
+
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var FADE = 0.008;     // time constant of every fade, in seconds; about 30 ms to silence
+  var LOOP = 2;         // seconds of sound in each looping buffer; a whole number of beats and of steps
+  var AHEAD = 1.5;      // how far ahead the panning is scheduled, so a busy page cannot stall it
+
+  var s = { layout: "headphones", mode: "walk", only: -1, dir: "cw", secs: 8, sound: "noise" };
+  var vol = 20;
+  var outputs = 2;
+  var ctx = null, master = null;
+  var voice = null;     // what is sounding now
+  var buffers = {};
+  var raf = 0, timer = 0;
+
+  var play = $("play"), room = $("room"), orb = $("orb"), error = $("error");
+  var spk = [];         // the speaker buttons, in the layout's order
+
+  /* ---- sound ---- */
+
+  function audio() {
+    if (ctx) return ctx;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) { /* older Safari */ }
+    ctx = new AC();
+    master = ctx.createGain();
+    master.gain.value = SUR.level(vol);
+    master.connect(ctx.destination);
+    outputs = Math.max(2, ctx.destination.maxChannelCount || 2);
+    $("s-max").textContent = outputs;
+    $("s-sr").textContent = ctx.sampleRate.toLocaleString("en-GB") + " Hz";
+    return ctx;
+  }
+
+  function buffer(kind) {
+    if (!buffers[kind]) {
+      var b = ctx.createBuffer(1, Math.round(ctx.sampleRate * LOOP), ctx.sampleRate);
+      b.getChannelData(0).set(SUR.pulses(kind, ctx.sampleRate, LOOP, Math.random));
+      buffers[kind] = b;
+    }
+    return buffers[kind];
+  }
+
+  // Send each channel straight to its own output. If the sound output has
+  // fewer channels than the layout, let the browser fold them down instead.
+  function route() {
+    var d = ctx.destination, n = SUR.LAYOUTS[s.layout].channels;
+    var fits = n <= outputs;
+    try {
+      d.channelCount = fits ? n : outputs;
+      d.channelCountMode = "explicit";
+      d.channelInterpretation = fits && s.layout !== "headphones" ? "discrete" : "speakers";
+    } catch (e) { /* keep whatever the browser allows */ }
+  }
+
+  function loop(kind, t) {
+    var src = ctx.createBufferSource();
+    src.buffer = buffer(kind);
+    src.loop = true;
+    src.start(t);
+    return src;
+  }
+
+  function start() {
+    var L = SUR.LAYOUTS[s.layout], t = ctx.currentTime + 0.05;
+    route();
+    var env = ctx.createGain();
+    env.gain.setValueAtTime(0, ctx.currentTime);
+    env.gain.setTargetAtTime(1, t, FADE);
+    env.connect(master);
+
+    var v = { env: env, start: t, srcs: [], gains: [], panner: null, k: 0, mode: s.mode, only: s.only,
+              layout: s.layout, dir: s.dir, secs: s.secs };
+    var merge = ctx.createChannelMerger(L.channels);
+    merge.connect(env);
+    var main = loop(s.sound, t);
+    v.srcs.push(main);
+    var sub = null;
+
+    L.speakers.forEach(function (sp, i) {
+      var g = ctx.createGain();
+      g.gain.value = 0;
+      if (sp.angle === null) {
+        if (!sub) { sub = loop("sub", t); v.srcs.push(sub); }
+        sub.connect(g);
+      } else main.connect(g);
+      g.connect(merge, 0, sp.ch);
+      v.gains[i] = g;
+    });
+
+    // Going round on headphones goes through the browser's 3D panner instead.
+    if (s.mode === "orb" && s.layout === "headphones") {
+      var pn = ctx.createPanner();
+      pn.panningModel = "HRTF";
+      pn.distanceModel = "inverse";
+      pn.refDistance = 1;
+      main.connect(pn);
+      pn.connect(env);
+      v.panner = pn;
+      if (!pn.positionX) {
+        error.textContent = "This browser cannot move sound around your head. Try a recent Chrome, Firefox or Safari.";
+      }
+    }
+
+    if (v.mode === "one") v.gains[v.only].gain.value = 1;
+    plan(v);
+    return v;
+  }
+
+  // Keep the panning scheduled a little ahead, one cycle at a time: a turn
+  // for "Going round", a full round of speakers for "Each in turn".
+  function plan(v) {
+    if (v.mode === "one") return;
+    var L = SUR.LAYOUTS[v.layout];
+    var cycle = v.mode === "orb" ? v.secs : SUR.STEP * L.speakers.length;
+    while (v.start + v.k * cycle < ctx.currentTime + AHEAD) {
+      var t0 = v.start + v.k * cycle;
+      if (v.mode === "orb") {
+        // Curves may not touch, so each stops a millisecond short of the next.
+        if (v.panner && v.panner.positionX) {
+          var xs = new Float32Array(361), zs = new Float32Array(361);
+          for (var i = 0; i <= 360; i++) {
+            var p = SUR.position(SUR.orbAngle(v.secs * i / 360, v.secs, v.dir));
+            xs[i] = p.x; zs[i] = p.z;
+          }
+          v.panner.positionX.setValueCurveAtTime(xs, t0, cycle - 0.001);
+          v.panner.positionZ.setValueCurveAtTime(zs, t0, cycle - 0.001);
+        } else if (!v.panner) {
+          var curves = SUR.turn(v.layout, v.secs, v.dir, 360);
+          L.speakers.forEach(function (sp, i) {
+            if (sp.angle !== null) v.gains[i].gain.setValueCurveAtTime(curves[sp.ch], t0, cycle - 0.001);
+          });
+        }
+      } else {
+        L.speakers.forEach(function (sp, i) {
+          var on = t0 + i * SUR.STEP;
+          v.gains[i].gain.setTargetAtTime(1, on, FADE / 2);
+          v.gains[i].gain.setTargetAtTime(0, on + SUR.STEP, FADE / 2);
+        });
+      }
+      v.k++;
+    }
+  }
+
+  function fade(v, t) {
+    v.env.gain.cancelScheduledValues(t);
+    v.env.gain.setTargetAtTime(0, t, FADE);
+    v.srcs.forEach(function (src) {
+      try { src.stop(t + FADE * 12); } catch (e) { /* older Safari allows one stop() */ }
+    });
+    setTimeout(function () { v.env.disconnect(); }, 400);
+  }
+
+  function restart() {
+    if (!voice) return;
+    fade(voice, ctx.currentTime);
+    voice = start();
+  }
+
+  function begin() {
+    error.textContent = "";
+    if (!audio()) { error.textContent = "This browser cannot make sound. Try a recent Chrome, Firefox or Safari."; return; }
+    if (ctx.state !== "running" && ctx.resume) ctx.resume();
+    voice = start();
+    play.textContent = "Stop";
+    play.classList.add("on");
+    $("status").textContent = "Playing";
+    clearInterval(timer);
+    timer = setInterval(function () { if (voice) plan(voice); }, 250);
+    tick();
+    shape();
+  }
+
+  function end() {
+    if (voice) fade(voice, ctx.currentTime);
+    voice = null;
+    clearInterval(timer);
+    cancelAnimationFrame(raf);
+    play.textContent = "Play";
+    play.classList.remove("on");
+    $("status").textContent = "Stopped";
+    if (s.mode === "one") s.mode = "walk";
+    shape();
+  }
+
+  function toggle() { if (voice) end(); else begin(); }
+
+  /* ---- the picture ---- */
+
+  // Speakers sit on the circle; the subwoofer sits inside it, front right.
+  function spot(angle, r) {
+    var a = angle * Math.PI / 180;
+    return { left: 50 + r * Math.sin(a) + "%", top: 50 - r * Math.cos(a) + "%" };
+  }
+
+  function draw() {
+    spk.forEach(function (b) { b.remove(); });
+    spk = SUR.LAYOUTS[s.layout].speakers.map(function (sp, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "spk";
+      b.textContent = sp.id;
+      b.setAttribute("aria-label", sp.name + ", play only this one");
+      var at = sp.angle === null ? spot(28, 22) : spot(sp.angle, 38);
+      b.style.left = at.left;
+      b.style.top = at.top;
+      b.addEventListener("click", function () { only(i); });
+      room.appendChild(b);
+      return b;
+    });
+  }
+
+  function lit() {
+    if (!voice) return -1;
+    if (voice.mode === "one") return voice.only;
+    if (voice.mode === "walk") return SUR.walkAt(voice.layout, ctx.currentTime - voice.start);
+    return -1;
+  }
+
+  function where(i) {
+    var sp = SUR.LAYOUTS[s.layout].speakers[i];
+    if (s.layout === "headphones") {
+      return "Only in your " + (sp.id === "L" ? "left" : "right") +
+        " ear. If it is in the other one, the earpieces are swapped or on backwards.";
+    }
+    if (sp.angle === null) return "A low hum from the subwoofer. Felt more than heard on small speakers.";
+    return "It should come only from that speaker. If it comes from another, two cables are swapped.";
+  }
+
+  function show() {
+    var L = SUR.LAYOUTS[s.layout], big = $("big"), line = $("line"), on = lit();
+    spk.forEach(function (b, i) {
+      b.classList.toggle("lit", i === on);
+      b.setAttribute("aria-pressed", String(!!voice && voice.mode === "one" && voice.only === i));
+    });
+    var orbing = s.mode === "orb";
+    orb.hidden = !orbing;
+    if (orbing) {
+      var a = voice && voice.mode === "orb" ? SUR.orbAngle(Math.max(0, ctx.currentTime - voice.start), voice.secs, voice.dir) : 0;
+      var at = spot(a, 38);
+      orb.style.left = at.left;
+      orb.style.top = at.top;
+    }
+    if (on > -1) {
+      big.textContent = L.speakers[on].name;
+      line.textContent = where(on);
+    } else if (voice && orbing) {
+      big.textContent = "Going round";
+      line.textContent = (s.dir === "cw" ? "Clockwise" : "Anticlockwise") + ". Follow the dot: the sound should move with it." +
+        (s.layout === "stereo" ? " With two speakers it can only move left and right." : "");
+    } else {
+      big.textContent = L.name;
+      line.textContent = orbing ? "Press Play to send a sound round you." :
+        "Press Play to hear each " + (s.layout === "headphones" ? "ear" : "speaker") +
+        " in turn, or press one above to hear only that.";
+    }
+  }
+
+  function tick() {
+    cancelAnimationFrame(raf);
+    show();
+    if (voice && voice.mode !== "one") raf = requestAnimationFrame(tick);
+  }
+
+  function facts() {
+    var L = SUR.LAYOUTS[s.layout];
+    $("s-ch").textContent = Math.min(L.channels, outputs) + (L.channels > outputs ? " (of " + L.channels + " needed)" : "");
+    $("s-order").textContent = SUR.order(s.layout);
+    $("s-pan").textContent = s.layout === "headphones" ? "HRTF, binaural" :
+      s.layout === "stereo" ? "constant power, left to right" : "constant power, pairwise";
+    var g = SUR.level(vol) * SUR.NOISE_RMS;
+    $("s-level").textContent = g > 0 ? (20 * Math.log10(g)).toFixed(1).replace("-", "−") + " dBFS hiss, average" : "silent";
+  }
+
+  function caution() {
+    var el = $("warn"), need = SUR.LAYOUTS[s.layout].channels, text = "";
+    if (need > outputs) {
+      text = "Your computer is only offering " + outputs + " sound channels, so you will not hear every speaker. " +
+        "Set its sound output to " + s.layout + ", then reload this page.";
+    } else if (vol > 60) {
+      text = "That is loud, especially in headphones. Turn it down before you put them on.";
+    }
+    el.hidden = !text;
+    el.textContent = text;
+  }
+
+  function pressed(id, value) {
+    Array.prototype.forEach.call($(id).querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.v === value));
+    });
+  }
+
+  function shape() {
+    $("for-orb").hidden = s.mode !== "orb";
+    $("keys").hidden = touch;
+    $("vol-out").textContent = vol + "%";
+    $("speed-out").textContent = s.secs + " seconds";
+    pressed("mode", s.mode === "one" ? "" : s.mode);
+    show();
+    facts();
+    caution();
+  }
+
+  /* ---- controls ---- */
+
+  var touch = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  // A speaker pressed plays on its own until it is pressed again.
+  function only(i) {
+    if (voice && voice.mode === "one" && voice.only === i) { end(); return; }
+    s.mode = "one";
+    s.only = i;
+    if (voice) { restart(); tick(); shape(); } else begin();
+  }
+
+  function choose(id, key, after) {
+    $(id).addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-v]");
+      if (!b || b.dataset.v === s[key]) return;
+      s[key] = b.dataset.v;
+      pressed(id, s[key]);
+      if (after) after();
+      restart();
+      tick();
+      shape();
+    });
+  }
+
+  choose("layout", "layout", function () { if (s.mode === "one") s.mode = "walk"; draw(); });
+  choose("mode", "mode");
+  choose("dir", "dir");
+  choose("sound", "sound");
+
+  play.addEventListener("click", toggle);
+
+  $("vol").addEventListener("input", function () {
+    vol = Number(this.value);
+    if (ctx) master.gain.setTargetAtTime(SUR.level(vol), ctx.currentTime, 0.03);
+    shape();
+  });
+
+  $("speed").addEventListener("input", function () {
+    s.secs = Number(this.value);
+    shape();
+  });
+  // A new speed takes effect on letting go, so dragging does not restart the turn over and over.
+  $("speed").addEventListener("change", function () { if (voice && voice.mode === "orb") { restart(); tick(); } });
+
+  $("form").addEventListener("submit", function (e) { e.preventDefault(); });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.key !== " ") return;
+    var el = e.target, tag = el && el.tagName;
+    var range = tag === "INPUT" && el.type === "range";
+    var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (el && el.isContentEditable);
+    if ((typing && !range) || tag === "BUTTON" || tag === "SUMMARY" || tag === "A") return;
+    e.preventDefault();
+    toggle();
+  });
+
+  // The sound card's channel count can be read before anything plays, so the
+  // page can start on the layout it is set up for.
+  function init() {
+    $("ios").hidden = !ios;
+    try { if (audio()) s.layout = SUR.suggest(outputs); } catch (e) { /* no sound at all */ }
+    pressed("layout", s.layout);
+    pressed("dir", s.dir);
+    pressed("sound", s.sound);
+    $("layout").dispatchEvent(new Event("click"));
+    draw();
+    shape();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+</script>
+
+</body>
+</html>
