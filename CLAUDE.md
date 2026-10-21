@@ -139,6 +139,7 @@ scripts/test-words.mjs     checks the counting and the limits inside tools/words
 scripts/test-random.mjs    checks the fair picking inside tools/random.html
 scripts/test-tone.mjs      checks the pitch, sweep, noise and link maths inside tools/tone.html
 scripts/test-spectrum.mjs  checks the peak, note and axis maths inside tools/spectrum.html
+scripts/test-surround.mjs  checks the channel order, panning and sounds inside tools/surround.html
 .github/workflows/build-tool.yml   labelling an issue `build` has Claude build it as a PR
 dist/                      generated, gitignored, what Cloudflare serves
 drafts/                    unfinished experiments, not published
@@ -160,6 +161,7 @@ node scripts/test-words.mjs            # verify the word, character and limit co
 node scripts/test-random.mjs           # verify the random picker is fair and includes both ends
 node scripts/test-tone.mjs             # verify the tone slider, notes, sweeps, noise slopes and links
 node scripts/test-spectrum.mjs         # verify the frequency analyser finds known tones to within a hertz
+node scripts/test-surround.mjs         # verify each speaker gets its own channel and the panning keeps level
 python3 -m http.server 8000 -d dist    # serve the built site
 ```
 
