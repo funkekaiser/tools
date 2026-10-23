@@ -135,6 +135,7 @@ scripts/test-qr.mjs        checks the QR encoder and the payload builders in too
 scripts/test-password.mjs  checks the generator inside tools/password.html
 scripts/test-screen.mjs    checks the test patterns inside tools/screen.html
 scripts/test-photo.mjs     checks the metadata stripping and size fitting in tools/photo.html
+scripts/test-passphrase.mjs  checks the word list, generator and count inside tools/passphrase.html
 .github/workflows/build-tool.yml   labelling an issue `build` has Claude build it as a PR
 dist/                      generated, gitignored, what Cloudflare serves
 drafts/                    unfinished experiments, not published
@@ -152,6 +153,7 @@ node scripts/test-qr.mjs               # verify the encoder and the payload buil
 node scripts/test-password.mjs         # verify the password generator
 node scripts/test-screen.mjs           # verify the screen test patterns
 node scripts/test-photo.mjs            # verify the photo stripping and size fitting
+node scripts/test-passphrase.mjs       # verify the passphrase generator and its count
 python3 -m http.server 8000 -d dist    # serve the built site
 ```
 
