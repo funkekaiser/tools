@@ -43,13 +43,15 @@ const SEARCH = `
     <p class="note" id="count" aria-live="polite" style="margin:8px 0 0"></p>
   </div>
 `;
-// Search takes each word you type, in any order, and looks for a word in a tool's title,
-// blurb, tags or keywords that starts with it. Little words are skipped and common endings
-// trimmed, so "flip coin", "coin flip" and "flipping coins" all find the same tool. This
-// function ships in the front page as written; scripts/test-search.mjs lifts it out of
-// this file and checks it against queries people actually type.
-function matches(text, query) {
-  var SKIP = " a an and are can do for from how i in is it me my of on or the this to with you your ";
+// Search scores each tool by the words you type, in any order: a word counts when it starts
+// a word in the tool's title, blurb, tags or keywords, and half when it is one slip away from
+// one (a letter missing, extra, wrong or swapped; five letters or more). Little words are
+// skipped and common endings trimmed, so "flip coin", "coin flip" and "flipping coins" agree.
+// The page shows the tools with the best score, so a sentence finds the tool that fits most
+// of it. This function ships in the front page as written; scripts/test-search.mjs lifts it
+// out of this file and checks it against queries people actually type.
+function score(text, query) {
+  var SKIP = " a an and are can do for from how i in is it me my need of on or the this to want with you your ";
   function words(s) {
     return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
       .split(/[^a-z0-9]+/).filter(Boolean);
@@ -59,25 +61,37 @@ function matches(text, query) {
     var m = w.match(/^(.{4,})(ing|ed|er|or|e)$/);
     return !m ? w : /([^aeiou])\1$/.test(m[1]) ? m[1].slice(0, -1) : m[1];
   }
-  var have = words(text).map(stem);
-  return words(query).every(function (q) {
-    if (SKIP.indexOf(" " + q + " ") > -1) return true;
+  function slip(a, b) {
+    if (Math.abs(a.length - b.length) > 1) return false;
+    var i = 0;
+    while (i < a.length && a[i] === b[i]) i++;
+    return a.slice(i + 1) === b.slice(i + 1) || a.slice(i + 1) === b.slice(i) ||
+      a.slice(i) === b.slice(i + 1) ||
+      (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+  }
+  var have = words(text).map(stem), total = 0, asked = 0;
+  words(query).forEach(function (q) {
+    if (SKIP.indexOf(" " + q + " ") > -1) return;
+    asked++;
     q = stem(q);
-    return have.some(function (w) { return w.indexOf(q) === 0; });
+    if (have.some(function (w) { return w.indexOf(q) === 0; })) total += 2;
+    else if (q.length >= 5 && have.some(function (w) { return slip(q, w); })) total += 1;
   });
+  return asked ? total : 1;
 }
 
 const SEARCH_SCRIPT = `
 <script>
 (function () {
-  ${matches}
+  ${score}
   var q = document.getElementById("q"), count = document.getElementById("count");
   var items = Array.prototype.slice.call(document.querySelectorAll("#list li[data-k]"));
   var groups = Array.prototype.slice.call(document.querySelectorAll("#list .group"));
   function run() {
-    var v = q.value, shown = 0;
-    items.forEach(function (li) {
-      var hit = matches(li.getAttribute("data-k"), v);
+    var scores = items.map(function (li) { return score(li.getAttribute("data-k"), q.value); });
+    var best = Math.max.apply(null, scores), shown = 0;
+    items.forEach(function (li, i) {
+      var hit = best > 0 && scores[i] === best;
       li.hidden = !hit;
       if (hit) shown++;
     });

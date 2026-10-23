@@ -107,13 +107,19 @@ These choices are settled and recorded so they are not quietly undone later.
   tool. Filter buttons above the search box were considered and rejected as apparatus: the
   headings sort the page for someone browsing, the search finds things for someone who knows
   what they want, and a third control would only be a slower version of either.
-- **Search matches words, not strings.** Each word typed must match the start of a word in a
-  tool's title, blurb, tags or keywords, in any order; little words like "my" and "from" are
-  skipped and common endings trimmed, so "flip coin", "coin flip" and "flipping coins" agree.
-  The first version matched the whole query as one substring, so "count words" found nothing
-  while "word count" worked, and "ip" matched "tips". Groups with no matching tool hide their
-  heading. `scripts/test-search.mjs` holds the queries that used to fail; when someone reports
-  a search that missed, add it there and fix the keywords or the matcher until it passes.
+- **Search matches words, not strings, and shows the best match.** Each word typed counts
+  when it starts a word in a tool's title, blurb, tags or keywords, in any order, and half when
+  it is one slip away (a letter missing, extra, wrong or swapped, in words of five letters or
+  more). Little words like "my" and "from" are skipped and common endings trimmed, so "flip
+  coin", "coin flip" and "flipping coins" agree. The page shows the tools with the best score,
+  not only tools that match every word, because the placeholder asks "What do you need to
+  do?" and people answer in sentences: requiring every word made "i need a qr code for my
+  wifi" find nothing. The price is looser results ("colour picker" finds the Random picker),
+  which the Suggest card beneath softens. The first version matched the whole query as one
+  substring, so "count words" found nothing while "word count" worked, and "ip" matched
+  "tips". Groups with no matching tool hide their heading. `scripts/test-search.mjs` holds the
+  queries that used to fail; when someone reports a search that missed, add it there and fix
+  the keywords or the matcher until it passes.
 - **The last card asks for the next tool.** build.mjs ends the front-page list with a "Suggest
   a tool" card linking to a new GitHub issue. It is shaped like a tool card but drawn with a
   dashed border and no fill, so it reads as an empty slot rather than a tool. Search skips it

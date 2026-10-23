@@ -12,13 +12,13 @@ import { dirname, join } from 'node:path';
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const build = readFileSync(join(root, 'scripts', 'build.mjs'), 'utf8');
 
-const start = build.indexOf('function matches(text, query) {');
+const start = build.indexOf('function score(text, query) {');
 const end = build.indexOf('\n}\n', start);
 if (start < 0 || end < 0) {
   console.error('could not find the matcher in scripts/build.mjs');
   process.exit(1);
 }
-const matches = new Function(build.slice(start, end + 2) + '\nreturn matches;')();
+const score = new Function(build.slice(start, end + 2) + '\nreturn score;')();
 
 const tools = readdirSync(join(root, 'tools')).filter((f) => f.endsWith('.html')).map((f) => {
   const page = readFileSync(join(root, 'tools', f), 'utf8');
@@ -28,7 +28,11 @@ const tools = readdirSync(join(root, 'tools')).filter((f) => f.endsWith('.html')
 const slugs = new Set(tools.map((t) => t.slug));
 
 let fails = 0, checks = 0;
-const find = (q) => tools.filter((t) => matches(t.text, q)).map((t) => t.slug).sort();
+// What the page shows: the tools with the best score, if any word matched at all.
+const find = (q) => {
+  const scores = tools.map((t) => score(t.text, q)), best = Math.max(...scores);
+  return tools.filter((t, i) => best > 0 && scores[i] === best).map((t) => t.slug).sort();
+};
 
 // Each listed tool must be found. Tools that are not in tools/ right now are
 // skipped, so this keeps passing while a tool is on a branch of its own.
@@ -67,9 +71,22 @@ const FINDS = [
   ['refresh rate', ['screen']],
   ['passw', ['password']],          // still typing
   ['QR', ['qr']],
+  // sentences: the tool that fits most of the words wins
+  ['i need a qr code for my wifi', ['qr']],
+  ['photo too big for email', ['photo']],
+  ['how many characters in my text', ['words']],
+  ['is my monitor broken', ['screen']],
+  ['choose a random winner', ['random']],
+  // slips of the finger
+  ['pasword', ['passphrase', 'password']],
+  ['passwrod', ['passphrase', 'password']],
+  ['monitr test', ['screen']],
+  ['headphnoes', ['surround', 'tone']],
+  ['generater', ['password', 'tone']],
 ];
 
-// Exactly these, nothing else: the old search matched letters inside words.
+// Exactly these, nothing else: the first search matched letters inside words, and a
+// best match is only useful if it leaves the near misses out.
 const EXACT = [
   ['', [...slugs]],
   ['   ', [...slugs]],
@@ -77,6 +94,10 @@ const EXACT = [
   ['ip', ['screen']],               // "ips glow", not "tips" or "description"
   ['ink', []],                      // not "pink" or "thinking"
   ['colour', []],
+  ['hearing test', ['tone']],       // the tool that fits both words, not every "test"
+  ['wifi password', ['qr']],
+  ['pasword', ['passphrase', 'password', 'qr']],   // the same three as "password"
+  ['password', ['passphrase', 'password', 'qr']],
   ['spreadsheet', []],
 ];
 
