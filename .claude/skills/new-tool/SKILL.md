@@ -42,7 +42,7 @@ Top to bottom, and nothing else:
   first. One line, not a paragraph. No mention of ads, tracking, privacy or being free:
   the footer says that, once.
 - **The thing itself, first.** The result or the primary control is the first thing under
-  the lede. In the password maker it is the password; in the QR maker it is the type
+  the lede. In the password generator it is the password; in the QR code generator it is the type
   chooser with the code beside it. Never a checklist, a legend, or a paragraph of
   instructions before the tool.
 - **Controls on the left, result on the right** (`.split`), which stacks on a phone. A
@@ -68,6 +68,9 @@ and scrolls by design, but its intro still has to be short.
 
 Write for someone who does not know the field and does not want to.
 
+- **Name the tool with the words its people search for.** "Password generator", "Metadata
+  remover": common terms the intended visitor already knows are fine. Avoid only words they
+  would not understand. Not "maker", which reads oddly.
 - **Labels are questions or plain nouns.** "What should the code do?", "Chunks",
   "White border". Never the jargon name of the thing ("Error correction level").
 - **Buttons are named after what you get.** "Download PNG", "Copy", "Make another". The

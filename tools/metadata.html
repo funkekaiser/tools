@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Hidden info remover</title>
+<title>Metadata remover</title>
 <meta name="description" content="See what a photo, video, song, PDF or Office file says about you, then download a copy that says none of it. Free, no ads, no tracking, nothing uploaded.">
 <link rel="stylesheet" href="../shared/base.css">
 <script src="../shared/shell.js"></script>
 <script type="application/json" id="tool">
 {
-  "title": "Hidden info remover",
+  "title": "Metadata remover",
   "blurb": "See where a photo was taken, who wrote a document and which phone filmed a video, then download a copy that keeps none of it.",
   "group": "Everyday",
   "tags": ["privacy", "photos", "documents"],
@@ -68,12 +68,12 @@
 <body>
 
 <header class="topbar">
-  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Hidden info remover</div>
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Metadata remover</div>
   <div class="spacer"></div>
 </header>
 
 <main>
-  <h1 style="view-transition-name:tool-hidden">Hidden info remover</h1>
+  <h1 style="view-transition-name:tool-metadata">Metadata remover</h1>
   <p class="lede">Choose a file to see what it says about you, then download a copy that says none of it.</p>
 
   <div class="split">
@@ -143,7 +143,7 @@
    asked to clean, a writer that leaves those notes out. Pictures, sound and
    text are never decoded and saved again: the notes are cut out around them,
    or blanked in place where moving anything would break the file. No DOM in
-   here, so scripts/test-hidden.mjs can run it as it is. */
+   here, so scripts/test-metadata.mjs can run it as it is. */
 var CLEAN = (function () {
   "use strict";
 

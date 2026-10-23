@@ -137,7 +137,7 @@ These choices are settled and recorded so they are not quietly undone later.
   room becomes toughness instead of padding, and a bigger code is never chosen just to be
   tougher. Picking the size directly was considered and rejected: the sizes that fit change
   as you type, so a chosen size would keep becoming impossible.
-- **One hidden-info remover for every kind of file.** People ask "what is this file giving away?",
+- **One metadata remover for every kind of file.** People ask "what is this file giving away?",
   not "is a .docx a document?", so photos, videos, music, PDFs and Office files share one drop
   zone and the kind is read from the first bytes. Reading and removing are one tool: seeing the
   notes is what makes the clean copy believable. The notes are cut out around the picture, sound
@@ -147,9 +147,15 @@ These choices are settled and recorded so they are not quietly undone later.
   and dates removed, because deleting them changes what the document says; the page says they
   are there instead. Plain text has no notes; invisible characters in text are a separate idea
   (issue #16).
+- **A tool is named with the words its people already use.** Plain language is about the
+  person the tool is for, not about avoiding every common term. "Generator" and "metadata" are
+  what people type when they look for these tools, and they understand them, so they are fair
+  names. Earlier names said "maker" to dodge "generator" and read oddly, so they went. The test
+  is whether the person who needs the tool would understand the name; inside the tool, the real
+  jargon still goes behind the toggle.
 - **Jargon goes behind a "Technical details" toggle.** The main interface uses plain words;
   the exact version, mask and mode stay available for people who want them, collapsed by
-  default. The password maker follows the same rule: the headline is the verdict word, not a
+  default. The password generator follows the same rule: the headline is the verdict word, not a
   number of bits, and what bits are is explained inside the toggle.
 
 ## Layout
@@ -172,7 +178,7 @@ scripts/test-spectrum.mjs  checks the peak, note and axis maths inside tools/spe
 scripts/test-surround.mjs  checks the channel order, panning and sounds inside tools/surround.html
 scripts/test-passphrase.mjs  checks the word list, generator and count inside tools/passphrase.html
 scripts/test-search.mjs    checks the front-page search finds each tool from real queries
-scripts/test-hidden.mjs    checks every kind of hidden note is found and cut out by tools/hidden.html
+scripts/test-metadata.mjs  checks every kind of hidden note is found and cut out by tools/metadata.html
 .github/workflows/build-tool.yml   labelling an issue `build` has Claude build it as a PR
 dist/                      generated, gitignored, what Cloudflare serves
 drafts/                    unfinished experiments, not published
@@ -198,7 +204,7 @@ node scripts/test-spectrum.mjs         # verify the frequency analyser finds kno
 node scripts/test-surround.mjs         # verify each speaker gets its own channel and the panning keeps level
 node scripts/test-passphrase.mjs       # verify the passphrase generator and its count
 node scripts/test-search.mjs           # verify the front-page search finds tools from everyday queries
-node scripts/test-hidden.mjs           # verify no planted name, place or date survives cleaning
+node scripts/test-metadata.mjs         # verify no planted name, place or date survives cleaning
 python3 -m http.server 8000 -d dist    # serve the built site
 ```
 
