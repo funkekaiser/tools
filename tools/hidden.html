@@ -1,0 +1,1947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hidden info remover</title>
+<meta name="description" content="See what a photo, video, song, PDF or Office file says about you, then download a copy that says none of it. Free, no ads, no tracking, nothing uploaded.">
+<link rel="stylesheet" href="../shared/base.css">
+<script src="../shared/shell.js"></script>
+<script type="application/json" id="tool">
+{
+  "title": "Hidden info remover",
+  "blurb": "See where a photo was taken, who wrote a document and which phone filmed a video, then download a copy that keeps none of it.",
+  "group": "Everyday",
+  "tags": ["privacy", "photos", "documents"],
+  "keywords": ["metadata", "exif", "remove", "strip", "scrub", "clean", "hidden", "gps", "location", "author", "name", "camera", "phone", "pdf", "word", "docx", "excel", "xlsx", "powerpoint", "pptx", "video", "mp4", "mov", "heic", "jpg", "png", "mp3", "id3", "flac", "wav", "anonymous", "anonymise", "anonymize"]
+}
+</script>
+<style>
+  .split { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 28px; align-items: start;
+           margin-top: 28px; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .field { margin-bottom: 20px; }
+
+  .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+          min-height: 108px; padding: 14px; text-align: center; cursor: pointer; margin: 0;
+          border: 1.5px dashed var(--line); border-radius: 10px; background: var(--panel);
+          font-weight: 400; overflow-wrap: anywhere; }
+  .drop strong { font-weight: 600; }
+  .drop:hover, .drop.over { border-color: var(--acc); }
+  .drop:hover strong, .drop.over strong { color: var(--acc); }
+  .drop:focus-within { outline: 2px solid var(--acc); outline-offset: 3px; }
+
+  .out { display: flex; flex-direction: column; gap: 12px; }
+  .verdict { font-size: clamp(24px, 4.5vw, 30px); font-weight: 650; letter-spacing: -0.02em;
+             line-height: 1.15; margin: 0; color: var(--ok); }
+  .verdict:empty { display: none; }
+  .working .verdict { color: var(--dim); }
+  .warn .verdict { color: var(--warn); }
+  .bad .verdict { color: var(--bad); }
+  #detail { margin: 0; }
+
+  .found { padding: 14px 16px; background: var(--sunk); border: 1px solid var(--line); border-radius: 10px;
+           font-size: 14.5px; }
+  .found dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; }
+  .found dt { color: var(--dim); }
+  .found dd { margin: 0; font-family: var(--mono); font-size: 14px; overflow-wrap: anywhere; }
+  .found .empty { color: var(--dim); margin: 0; }
+  @media (max-width: 480px) {
+    .found dl { grid-template-columns: 1fr; gap: 0; }
+    .found dd { margin-bottom: 8px; }
+  }
+  .still { margin: 0; padding-left: 20px; font-size: 14.5px; }
+  .still:empty { display: none; }
+  .still li + li { margin-top: 6px; }
+  #download { font-weight: 600; }
+  #download.done { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
+
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 14px; }
+  summary:hover { color: var(--acc); }
+  .facts { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px;
+           font-size: 14px; font-family: var(--mono); }
+  .facts dt { color: var(--dim); }
+  .facts dd { margin: 0; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Hidden info remover</div>
+  <div class="spacer"></div>
+</header>
+
+<main>
+  <h1 style="view-transition-name:tool-hidden">Hidden info remover</h1>
+  <p class="lede">Choose a file to see what it says about you, then download a copy that says none of it.</p>
+
+  <div class="split">
+    <form id="form" autocomplete="off">
+      <div class="field">
+        <label class="drop" id="drop" for="file"
+          data-tip="Photos (JPEG, PNG, WebP, GIF, HEIC, AVIF, SVG), videos (MP4, MOV), music (MP3, M4A, FLAC, WAV), PDFs, and Word, Excel, PowerPoint and OpenDocument files. You can also paste a picture.">
+          <strong id="drop-name">Choose a file</strong>
+          <span class="note" id="drop-hint">or drop it here</span>
+          <input type="file" id="file" class="sr" data-primary>
+        </label>
+      </div>
+      <p class="note">Photos, videos, music, PDFs, and Word, Excel and PowerPoint files.</p>
+    </form>
+
+    <section class="out" id="out" aria-labelledby="result-h">
+      <h2 id="result-h" class="sr">What the file says</h2>
+      <p class="verdict" id="verdict" aria-live="polite"></p>
+      <p class="note" id="detail"></p>
+      <div class="found" id="found"><p class="empty">What the file says about you will appear here.</p></div>
+      <ul class="still" id="still"></ul>
+
+      <div class="actions">
+        <button type="button" id="download" disabled
+          data-tip="Saves a copy with everything listed above taken out. The picture, sound or text in it is copied exactly, not saved again, so nothing loses quality. Your original file is not changed.">Download clean copy</button>
+      </div>
+
+      <details>
+        <summary>Technical details</summary>
+        <dl class="facts">
+          <dt>original</dt><dd id="s-orig">—</dd>
+          <dt>copy</dt><dd id="s-copy">—</dd>
+          <dt>removed</dt><dd id="s-removed">—</dd>
+          <dt>kept</dt><dd id="s-kept">—</dd>
+          <dt>checked</dt><dd id="s-checked">—</dd>
+        </dl>
+        <p class="note" style="margin-top:12px">Files carry notes about themselves, called metadata: EXIF,
+          XMP and IPTC in photos, atoms in videos, ID3 and Vorbis tags in music, document properties in
+          Office files and PDFs. Everything here that names a person, a place, a device or a time is taken
+          out, and the copy is read again before you can download it. Only the notes are touched: pictures,
+          sound and text are copied byte for byte. What you can see or hear stays, like a face, a street
+          sign or a name typed into the text.</p>
+      </details>
+    </section>
+  </div>
+</main>
+
+<div class="savebar">
+  <button type="button" id="save"
+    data-tip="Downloads this page as one file that keeps working with no internet, even if this website disappears.">Save this tool</button>
+  <p class="hint">Keep your own copy of this page — or press <kbd id="savekey">⌘ S</kbd>.</p>
+</div>
+
+<footer class="foot">
+  <p class="promise">Everything happens on your device. Nothing you type is sent or saved anywhere.</p>
+  <div class="links">
+    <span>Free and <a href="https://github.com/funkekaiser/tools">open source</a>.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+  </div>
+</footer>
+
+<script>
+/* ------------------------------------------------------------ clean ----
+   Everything that decides what is in the file people download. Each kind of
+   file has a reader that lists what it says about the person who made it and,
+   asked to clean, a writer that leaves those notes out. Pictures, sound and
+   text are never decoded and saved again: the notes are cut out around them,
+   or blanked in place where moving anything would break the file. No DOM in
+   here, so scripts/test-hidden.mjs can run it as it is. */
+var CLEAN = (function () {
+  "use strict";
+
+  /* ---- bytes ---- */
+
+  function ascii(b, at, n) {
+    var s = "";
+    for (var i = 0; i < n && at + i < b.length; i++) s += String.fromCharCode(b[at + i]);
+    return s;
+  }
+
+  function latin(b, from, to) {
+    from = from || 0;
+    to = to == null ? b.length : Math.min(to, b.length);
+    var s = "";
+    for (var i = from; i < to; i += 32768) s += String.fromCharCode.apply(null, b.subarray(i, Math.min(i + 32768, to)));
+    return s;
+  }
+
+  function find(b, text, from, to) {
+    to = Math.min(to, b.length - text.length);
+    outer: for (var i = from; i <= to; i++) {
+      for (var j = 0; j < text.length; j++) if (b[i + j] !== text.charCodeAt(j)) continue outer;
+      return i;
+    }
+    return -1;
+  }
+
+  function be16(b, p) { return b[p] << 8 | b[p + 1]; }
+  function be32(b, p) { return (b[p] << 24 | b[p + 1] << 16 | b[p + 2] << 8 | b[p + 3]) >>> 0; }
+  function le16(b, p) { return b[p] | b[p + 1] << 8; }
+  function le32(b, p) { return (b[p] | b[p + 1] << 8 | b[p + 2] << 16 | b[p + 3] << 24) >>> 0; }
+  function syncsafe(b, p) { return (b[p] & 127) << 21 | (b[p + 1] & 127) << 14 | (b[p + 2] & 127) << 7 | (b[p + 3] & 127); }
+
+  function join(parts) {
+    var n = 0, at = 0;
+    parts.forEach(function (p) { n += p.length; });
+    var out = new Uint8Array(n);
+    parts.forEach(function (p) { out.set(p, at); at += p.length; });
+    return out;
+  }
+
+  var UTF8 = new TextDecoder("utf-8");
+  function utf8(b) { return UTF8.decode(b); }
+  function bytes(s) { return new TextEncoder().encode(s); }
+  function utf16(b, bigEndian) {
+    if (b[0] === 0xFE && b[1] === 0xFF) { bigEndian = true; b = b.subarray(2); }
+    else if (b[0] === 0xFF && b[1] === 0xFE) { bigEndian = false; b = b.subarray(2); }
+    return new TextDecoder(bigEndian ? "utf-16be" : "utf-16le").decode(b.subarray(0, b.length & ~1));
+  }
+
+  // Lenient readers keep what came out before an error: PDFs often have a
+  // stray byte or two after their packed data.
+  async function pipe(b, stream, lenient) {
+    var reader = new Blob([b]).stream().pipeThrough(stream).getReader(), parts = [];
+    try {
+      for (;;) { var x = await reader.read(); if (x.done) break; parts.push(x.value); }
+    } catch (e) {
+      if (!lenient || !parts.length) throw e;
+    }
+    return join(parts);
+  }
+  function inflate(b) { return pipe(b, new DecompressionStream("deflate"), true); }
+  function inflateRaw(b) { return pipe(b, new DecompressionStream("deflate-raw")); }
+  function deflate(b) { return pipe(b, new CompressionStream("deflate")); }
+  function deflateRaw(b) { return pipe(b, new CompressionStream("deflate-raw")); }
+
+  var CRC = (function () {
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+      t[n] = c;
+    }
+    return t;
+  })();
+  function crc32(b) {
+    var c = -1;
+    for (var i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8);
+    return (c ^ -1) >>> 0;
+  }
+
+  /* ---- what was found, in words ---- */
+
+  // what: place, person, device, time, software or other. The page orders and
+  // judges by it; the label and value are what the visitor reads.
+  function report() { return { found: [], notes: [], removed: [], kept: [], type: null }; }
+
+  function tidy(v) {
+    var s = String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
+    return s.length > 200 ? s.slice(0, 199) + "…" : s;
+  }
+
+  // The stand-in written over a name. It is not a finding when it is read back.
+  var NOBODY = "Author";
+
+  function add(r, what, label, value) {
+    value = tidy(value);
+    if (!value || value === NOBODY) return;
+    for (var i = 0; i < r.found.length; i++) {
+      var f = r.found[i];
+      if (f.label !== label) continue;
+      if ((", " + f.value + ", ").indexOf(", " + value + ", ") < 0) f.value = tidy(f.value + ", " + value);
+      return;
+    }
+    r.found.push({ what: what, label: label, value: value });
+  }
+  function gone(r, what) { if (r.removed.indexOf(what) < 0) r.removed.push(what); }
+  function kept(r, what) { if (r.kept.indexOf(what) < 0) r.kept.push(what); }
+  function note(r, text, bad) { r.notes.push({ text: text, bad: !!bad }); }
+
+  function fail(message) { var e = new Error(message); e.plain = true; throw e; }
+  function damaged() { fail("The file looks damaged, so it was left alone."); }
+
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
+                "September", "October", "November", "December"];
+  function two(n) { return (n < 10 ? "0" : "") + n; }
+  function when(y, mo, d, h, mi) {
+    if (!(y > 1900 && y < 2200 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) return "";
+    var t = d + " " + MONTHS[mo - 1] + " " + y;
+    if (h != null && h >= 0 && h < 24 && mi >= 0 && mi < 60) t += ", " + two(h) + ":" + two(mi);
+    return t;
+  }
+  // EXIF "2024:05:01 13:22:10", ISO "2024-05-01T13:22:10Z" and PDF "D:20240501132210+02'00'".
+  function dateText(s) {
+    s = tidy(s);
+    var m = s.match(/^(?:D:)?(\d{4})[:\-]?(\d{2})[:\-]?(\d{2})(?:[T\s]?(\d{2}):?(\d{2}))?/);
+    if (!m) return s;
+    return when(+m[1], +m[2], +m[3], m[4] == null ? null : +m[4], +m[5]);
+  }
+  function coords(lat, lon) {
+    if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || (!lat && !lon)) return "";
+    return Math.abs(lat).toFixed(4) + "° " + (lat < 0 ? "S" : "N") + ", " +
+           Math.abs(lon).toFixed(4) + "° " + (lon < 0 ? "W" : "E");
+  }
+  // "+52.5200+013.4050+034.000/", the way phones write where a video was filmed.
+  function iso6709(s) {
+    var m = String(s).match(/^\s*([+-]\d+(?:\.\d+)?)([+-]\d+(?:\.\d+)?)/);
+    return m ? coords(+m[1], +m[2]) || tidy(s) : tidy(s);
+  }
+  function camera(make, model) {
+    make = tidy(make); model = tidy(model);
+    if (make && model && model.toLowerCase().indexOf(make.split(" ")[0].toLowerCase()) === 0) return model;
+    return tidy(make + " " + model);
+  }
+  function minutes(n) {
+    n = Math.round(n);
+    if (!(n > 0)) return "";
+    var h = Math.floor(n / 60), m = n % 60;
+    return (h ? h + (h === 1 ? " hour" : " hours") + (m ? " " : "") : "") + (m ? m + (m === 1 ? " minute" : " minutes") : "");
+  }
+  function basename(path) { return path.split(/[\\\/]/).filter(Boolean).pop() || ""; }
+  function xmlText(s) {
+    return String(s).replace(/<[^>]*>/g, " ").replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, function (all, e) {
+      e = e.toLowerCase();
+      if (e[0] === "#") { var n = e[1] === "x" ? parseInt(e.slice(2), 16) : +e.slice(1); return n < 0x110000 ? String.fromCodePoint(n) : ""; }
+      return { amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'" }[e];
+    });
+  }
+  function esc(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+  // What photos, videos and songs call the same things.
+  var PHOTO = { where: "Where it was taken", when: "Taken" };
+  var VIDEO = { where: "Where it was filmed", when: "Filmed" };
+  var AUDIO = { where: "Where it was recorded", when: "Recorded" };
+  var DOC = { where: "Where it was made", when: "Created" };
+
+  // A photo inside a document or PDF: its findings, said about the photo.
+  function inside(r, sub) {
+    sub.found.forEach(function (f) {
+      var label = f.label === "Where it was taken" ? "Where a photo in it was taken" : f.label + " (photo inside)";
+      add(r, f.what, label, f.value);
+    });
+  }
+
+  /* ---- EXIF: a small TIFF file of tagged values ---- */
+
+  var EXIF_TEXT = {
+    0x010E: "description", 0x010F: "make", 0x0110: "model", 0x0131: "software", 0x0132: "date",
+    0x013B: "artist", 0x8298: "copyright", 0x9003: "taken", 0x9004: "digitized",
+    0xA430: "owner", 0xA431: "serial", 0xA433: "lensMake", 0xA434: "lens", 0xA435: "lensSerial"
+  };
+  var EXIF_XP = { 0x9C9B: "xpTitle", 0x9C9C: "xpComment", 0x9C9D: "xpAuthor", 0x9C9F: "xpSubject" };
+
+  function readExif(b, at) {
+    if (ascii(b, at, 6) === "Exif\0\0") at += 6;
+    var order = ascii(b, at, 2);
+    if (order !== "II" && order !== "MM") return null;
+    var le = order === "II";
+    function u16(p) { return p + 2 > b.length ? 0 : le ? le16(b, p) : be16(b, p); }
+    function u32(p) { return p + 4 > b.length ? 0 : le ? le32(b, p) : be32(b, p); }
+    if (u16(at + 2) !== 42) return null;
+
+    var x = { tags: {}, gps: null, orientation: 0, thumbnail: false };
+    var seen = {}, lat = null, lon = null, latRef = "", lonRef = "";
+    function rationals(e, count) {
+      var p = at + u32(e + 8), out = [];
+      if (p + count * 8 > b.length) return null;
+      for (var i = 0; i < count; i++) { var d = u32(p + i * 8 + 4); out.push(d ? u32(p + i * 8) / d : NaN); }
+      return out;
+    }
+    function ifd(off, kind) {
+      var p = at + off;
+      if (!off || seen[p] || p + 2 > b.length) return 0;
+      seen[p] = true;
+      var n = u16(p);
+      for (var i = 0; i < n; i++) {
+        var e = p + 2 + i * 12;
+        if (e + 12 > b.length) return 0;
+        var tag = u16(e), type = u16(e + 2), count = u32(e + 4);
+        if (kind === "gps") {
+          if (tag === 1) latRef = ascii(b, e + 8, 1);
+          else if (tag === 3) lonRef = ascii(b, e + 8, 1);
+          else if (tag === 2 && type === 5 && count === 3) lat = rationals(e, 3);
+          else if (tag === 4 && type === 5 && count === 3) lon = rationals(e, 3);
+          continue;
+        }
+        if (tag === 0x0112) x.orientation = u16(e + 8);
+        else if (tag === 0x8769) ifd(u32(e + 8), "exif");
+        else if (tag === 0x8825) ifd(u32(e + 8), "gps");
+        else if ((EXIF_TEXT[tag] && type === 2) || (EXIF_XP[tag] && type === 1)) {
+          var v = count <= 4 ? e + 8 : at + u32(e + 8);
+          var raw = b.subarray(v, Math.min(v + Math.min(count, 400), b.length));
+          x.tags[EXIF_TEXT[tag] || EXIF_XP[tag]] = (type === 1 ? utf16(raw, false) : utf8(raw)).replace(/\0[\s\S]*$/, "");
+        }
+      }
+      return u32(p + 2 + n * 12);
+    }
+    // IFD0 points on to IFD1, which only ever holds a small preview picture.
+    var next = ifd(u32(at + 4), "main");
+    x.thumbnail = next > 0 && at + next + 2 <= b.length;
+    if (lat && lon) {
+      var la = lat[0] + lat[1] / 60 + lat[2] / 3600, lo = lon[0] + lon[1] / 60 + lon[2] / 3600;
+      x.gps = coords(latRef === "S" ? -la : la, lonRef === "W" ? -lo : lo) || null;
+    }
+    return x;
+  }
+
+  function exifFound(r, x, ctx) {
+    var t = x.tags;
+    if (x.gps) add(r, "place", ctx.where, x.gps);
+    add(r, "device", "Phone or camera", camera(t.make, t.model));
+    add(r, "device", "Lens", camera(t.lensMake, t.lens));
+    add(r, "device", "Serial number", t.serial);
+    add(r, "device", "Serial number", t.lensSerial);
+    add(r, "time", ctx.when, dateText(t.taken || t.digitized || t.date));
+    add(r, "person", "Author", t.artist);
+    add(r, "person", "Author", t.xpAuthor);
+    add(r, "person", "Owner", t.owner);
+    add(r, "person", "Copyright", t.copyright);
+    add(r, "software", "Made with", t.software);
+    add(r, "other", "Description", t.description);
+    add(r, "other", "Title", t.xpTitle);
+    add(r, "other", "Subject", t.xpSubject);
+    add(r, "other", "Comment", t.xpComment);
+  }
+
+  // An EXIF block that only says which way up the picture goes. Phones store
+  // photos sideways and rely on this, so it is the one value worth keeping.
+  function turnOnly(o) {
+    var t = [0x4D, 0x4D, 0, 0x2A, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, o, 0, 0, 0, 0, 0, 0];
+    var data = [0x45, 0x78, 0x69, 0x66, 0, 0].concat(t);
+    return new Uint8Array([0xFF, 0xE1, 0, data.length + 2].concat(data));
+  }
+
+  /* ---- XMP: notes written as XML, found in almost every kind of file ---- */
+
+  var XMP = [
+    ["person", "Author", "dc:creator"], ["person", "Copyright", "dc:rights"], ["person", "Owner", "aux:OwnerName"],
+    ["person", "Author", "pdf:Author"],
+    ["device", "Phone or camera", "tiff:Model"], ["device", "Lens", "aux:Lens"], ["device", "Lens", "exifEX:LensModel"],
+    ["device", "Serial number", "aux:SerialNumber"], ["device", "Serial number", "exifEX:BodySerialNumber"],
+    ["time", "@when", "exif:DateTimeOriginal"], ["time", "@when", "photoshop:DateCreated"],
+    ["time", "Created", "xmp:CreateDate"], ["time", "Last saved", "xmp:ModifyDate"],
+    ["software", "Made with", "xmp:CreatorTool"], ["software", "Made with", "pdf:Producer"],
+    ["software", "Edited with", "stEvt:softwareAgent"],
+    ["other", "Title", "dc:title"], ["other", "Description", "dc:description"],
+    ["other", "Keywords", "pdf:Keywords"], ["other", "Keywords", "dc:subject"]
+  ];
+  var XMP_PLACES = ["Iptc4xmpCore:Location", "photoshop:City", "photoshop:State", "photoshop:Country"];
+
+  function xmpValues(x, name) {
+    var n = esc(name), out = [], m;
+    var re = new RegExp("<" + n + "(?:\\s[^>]*)?>([\\s\\S]*?)</" + n + ">|\\s" + n + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')", "g");
+    while ((m = re.exec(x))) {
+      var v = tidy(xmlText(m[1] != null ? m[1] : m[2] != null ? m[2] : m[3]));
+      if (v) out.push(v);
+    }
+    return out;
+  }
+  // "52,31.2N" or "52,31,12N"
+  function xmpDegrees(s) {
+    var m = String(s || "").match(/^(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)(?:,(\d+(?:\.\d+)?))?([NSEW])$/);
+    if (!m) return NaN;
+    var v = +m[1] + m[2] / 60 + (m[3] ? m[3] / 3600 : 0);
+    return m[4] === "S" || m[4] === "W" ? -v : v;
+  }
+
+  function xmpRead(r, x, ctx) {
+    if (!/\S/.test(x)) return;
+    var any = false;
+    XMP.forEach(function (p) {
+      xmpValues(x, p[2]).forEach(function (v) {
+        add(r, p[0], p[1] === "@when" ? ctx.when : p[1], p[0] === "time" ? dateText(v) : v);
+        any = true;
+      });
+    });
+    var g = coords(xmpDegrees(xmpValues(x, "exif:GPSLatitude")[0]), xmpDegrees(xmpValues(x, "exif:GPSLongitude")[0]));
+    if (g) { add(r, "place", ctx.where, g); any = true; }
+    var names = [];
+    XMP_PLACES.forEach(function (p) { names = names.concat(xmpValues(x, p)); });
+    if (names.length) { add(r, "place", "Place named in it", names.join(", ")); any = true; }
+    if (!any && /<|=/.test(x)) add(r, "other", "Other notes", "an XMP block");
+  }
+
+  /* ---- IPTC: the captions and credits news photos carry ---- */
+
+  var IPTC = { 5: ["other", "Title"], 25: ["other", "Keywords"], 55: ["time", "Created"], 65: ["software", "Made with"],
+               80: ["person", "Author"], 110: ["person", "Credit"], 116: ["person", "Copyright"], 118: ["person", "Contact"],
+               120: ["other", "Description"], 90: ["place"], 92: ["place"], 95: ["place"], 101: ["place"] };
+  function iptcRead(r, b, from, to) {
+    var places = [];
+    for (var p = from; p + 5 <= to; p++) {
+      if (b[p] !== 0x1C || b[p + 1] !== 2) continue;
+      var ds = b[p + 2], len = be16(b, p + 3);
+      if (len & 0x8000 || p + 5 + len > to) continue;
+      var v = utf8(b.subarray(p + 5, p + 5 + len)), m = IPTC[ds];
+      if (m && m[0] === "place") places.push(tidy(v));
+      else if (m) add(r, m[0], m[1], m[0] === "time" ? dateText(v) : v);
+      p += 4 + len;
+    }
+    if (places.length) add(r, "place", "Place named in it", places.filter(Boolean).join(", "));
+  }
+
+  /* ---- JPEG: marked segments, then the picture, then an end mark ---- */
+
+  function segments(b) {
+    if (b[0] !== 0xFF || b[1] !== 0xD8) damaged();
+    var list = [], p = 2;
+    while (p + 1 < b.length) {
+      if (b[p] !== 0xFF) damaged();
+      var m = b[p + 1];
+      if (m === 0xFF) { p++; continue; }
+      if (m === 0xD9) return { list: list, end: p + 2, tail: b.length - p - 2 };
+      if ((m >= 0xD0 && m <= 0xD7) || m === 0x01) { list.push({ m: m, from: p, to: p + 2 }); p += 2; continue; }
+      var len = b[p + 2] << 8 | b[p + 3], to = p + 2 + len;
+      if (len < 2 || to > b.length) damaged();
+      list.push({ m: m, from: p, to: to, data: p + 4 });
+      p = to;
+      if (m === 0xDA) {
+        // Picture data runs until a marker that is not an escaped byte or a restart.
+        var q = p;
+        while (q + 1 < b.length && !(b[q] === 0xFF && b[q + 1] !== 0 && !(b[q + 1] >= 0xD0 && b[q + 1] <= 0xD7))) q++;
+        if (q + 1 >= b.length) q = b.length;
+        list.push({ m: -1, from: p, to: q });
+        p = q;
+      }
+    }
+    return { list: list, end: b.length, tail: 0 };
+  }
+
+  // Only three kinds of note are needed to show the picture right: the JFIF
+  // header, the colour profile, and Adobe's colour flag. Everything else goes.
+  function kind(b, s) {
+    if (s.m < 0xE0 || (s.m > 0xEF && s.m !== 0xFE)) return "picture";
+    var head = ascii(b, s.data, 30);
+    if (s.m === 0xFE) return "comment";
+    if (s.m === 0xE0) return head.indexOf("JFIF\0") === 0 ? "jfif" : head.indexOf("JFXX\0") === 0 ? "preview picture" : "other notes";
+    if (s.m === 0xE1) return head.indexOf("Exif\0") === 0 ? "EXIF" : head.indexOf("http://ns.adobe.com/xap/1.0/\0") === 0 ? "XMP"
+      : head.indexOf("http://ns.adobe.com/") === 0 ? "extended XMP" : "other notes";
+    if (s.m === 0xE2) return head.indexOf("ICC_PROFILE\0") === 0 ? "icc" : head.indexOf("MPF\0") === 0 ? "extra pictures" : "other notes";
+    if (s.m === 0xEB && find(b, "c2pa", s.data, s.to) > -1) return "content credentials";
+    if (s.m === 0xED) return "IPTC";
+    if (s.m === 0xEE && head.indexOf("Adobe") === 0) return "adobe";
+    return "other notes";
+  }
+  var KEEP = { picture: true, jfif: true, icc: true, adobe: true };
+
+  function jpegRead(b, r, ctx) {
+    var seg = segments(b), turn = 0;
+    seg.list.forEach(function (s) {
+      var k = kind(b, s);
+      if (k === "EXIF") {
+        var x = readExif(b, s.data);
+        if (x) { exifFound(r, x, ctx); turn = x.orientation || turn; if (x.thumbnail) gone(r, "preview picture"); }
+      } else if (k === "XMP") xmpRead(r, utf8(b.subarray(s.data + 29, s.to)), ctx);
+      else if (k === "IPTC") iptcRead(r, b, s.data, s.to);
+      else if (k === "comment") add(r, "other", "Comment", utf8(b.subarray(s.data, s.to)));
+      else if (k === "content credentials") add(r, "other", "Content credentials", "a signed record of how it was made");
+      if (k === "icc") kept(r, "colour profile");
+      else if (!KEEP[k]) gone(r, k);
+    });
+    if (seg.tail > 0) gone(r, "extra pictures");
+    return { seg: seg, turn: turn };
+  }
+
+  function jpeg(b, r, clean, ctx) {
+    var j = jpegRead(b, r, ctx);
+    if (!clean) return null;
+    var parts = [b.subarray(0, 2)], placed = false;
+    function turn() {
+      if (placed) return;
+      placed = true;
+      if (j.turn > 1 && j.turn <= 8) { parts.push(turnOnly(j.turn)); kept(r, "which way up it goes"); }
+    }
+    j.seg.list.forEach(function (s) {
+      var k = kind(b, s);
+      if (!KEEP[k]) return;
+      if (k !== "jfif") turn();
+      parts.push(b.subarray(s.from, s.to));
+    });
+    turn();
+    // Anything after the end mark goes too: phones hide whole extra pictures there.
+    parts.push(new Uint8Array([0xFF, 0xD9]));
+    return join(parts);
+  }
+
+  // Inside a PDF nothing may move, so the notes are zeroed where they are.
+  function jpegBlank(b) {
+    var seg = segments(b);
+    seg.list.forEach(function (s) { if (!KEEP[kind(b, s)]) b.fill(0, s.data, s.to); });
+    b.fill(0, seg.end, b.length);
+  }
+
+  /* ---- PNG: named chunks ---- */
+
+  // Lower-case first letter means a viewer may skip the chunk; of those, these
+  // change how the picture looks and stay. Every other note goes.
+  var PNG_KEEP = " tRNS cHRM gAMA iCCP sBIT sRGB cICP mDCV cLLI bKGD pHYs acTL fcTL fdAT ";
+  var PNG_TEXT = { Author: ["person", "Author"], Copyright: ["person", "Copyright"], Software: ["software", "Made with"],
+                   Source: ["device", "Phone or camera"], "Creation Time": ["time", "Created"],
+                   "date:create": ["time", "Created"], "date:modify": ["time", "Last saved"],
+                   Title: ["other", "Title"], Description: ["other", "Description"], Comment: ["other", "Comment"] };
+
+  function hexBytes(s) {
+    var m = s.match(/^\s*\S+\s+\d+\s+([\s\S]*)$/), h = (m ? m[1] : s).replace(/[^0-9a-f]/gi, "");
+    var out = new Uint8Array(h.length >> 1);
+    for (var i = 0; i < out.length; i++) out[i] = parseInt(h.substr(i * 2, 2), 16);
+    return out;
+  }
+
+  async function pngText(r, key, value, ctx) {
+    if (key === "XML:com.adobe.xmp") return xmpRead(r, value, ctx);
+    var raw = key.match(/^Raw profile type (exif|app1|xmp|iptc)$/i);
+    if (raw) {
+      var h = hexBytes(value), t = raw[1].toLowerCase();
+      if (t === "xmp") return xmpRead(r, utf8(h), ctx);
+      if (t === "iptc") return iptcRead(r, h, 0, h.length);
+      var at = find(h, "Exif\0\0", 0, 64), x = readExif(h, at > -1 ? at : 0);
+      if (x) exifFound(r, x, ctx);
+      return;
+    }
+    var m = PNG_TEXT[key];
+    if (m) add(r, m[0], m[1], m[0] === "time" ? dateText(value) || value : value);
+    else add(r, "other", "Other notes", key + ": " + value);
+  }
+
+  async function png(b, r, clean, ctx) {
+    if (ascii(b, 1, 3) !== "PNG") damaged();
+    var parts = [b.subarray(0, 8)], p = 8;
+    while (p + 12 <= b.length) {
+      var len = be32(b, p), t = ascii(b, p + 4, 4), end = p + 12 + len;
+      if (end > b.length) damaged();
+      var d = b.subarray(p + 8, p + 8 + len);
+      if (t.charCodeAt(0) < 97 || PNG_KEEP.indexOf(" " + t + " ") > -1) {
+        parts.push(b.subarray(p, end));
+        if (t === "iCCP") kept(r, "colour profile");
+      } else {
+        gone(r, t);
+        var z = d.indexOf(0), key = latin(d, 0, z);
+        try {
+          if (t === "tEXt" && z > -1) await pngText(r, key, latin(d, z + 1), ctx);
+          else if (t === "zTXt" && z > -1) await pngText(r, key, latin(await inflate(d.subarray(z + 2))), ctx);
+          else if (t === "iTXt" && z > -1) {
+            var lang = d.indexOf(0, z + 3), tkey = d.indexOf(0, lang + 1), body = d.subarray(tkey + 1);
+            await pngText(r, key, utf8(d[z + 1] ? await inflate(body) : body), ctx);
+          } else if (t === "eXIf") { var x = readExif(d, 0); if (x) exifFound(r, x, ctx); }
+          else if (t === "tIME") add(r, "time", "Last saved", when(be16(d, 0), d[2], d[3], d[4], d[5]));
+        } catch (e) {
+          add(r, "other", "Other notes", t + " chunk");
+        }
+      }
+      p = end;
+      if (t === "IEND") break;
+    }
+    if (p < b.length) gone(r, "data after the end");
+    return clean ? join(parts) : null;
+  }
+
+  /* ---- WebP: RIFF chunks ---- */
+
+  var WEBP_KEEP = ["VP8X", "VP8 ", "VP8L", "ALPH", "ANIM", "ANMF", "ICCP"];
+
+  function webp(b, r, clean, ctx) {
+    var parts = [], p = 12;
+    while (p + 8 <= b.length) {
+      var c = ascii(b, p, 4), n = le32(b, p + 4), end = Math.min(p + 8 + n + (n & 1), b.length);
+      if (p + 8 + n > b.length) damaged();
+      if (c === "EXIF") { var x = readExif(b, p + 8); if (x) exifFound(r, x, ctx); gone(r, "EXIF"); }
+      else if (c === "XMP ") { xmpRead(r, utf8(b.subarray(p + 8, p + 8 + n)), ctx); gone(r, "XMP"); }
+      else if (WEBP_KEEP.indexOf(c) > -1) {
+        var chunk = b.slice(p, end);
+        if (c === "VP8X") chunk[8] &= ~0x0C;   // no longer has EXIF or XMP
+        if (c === "ICCP") kept(r, "colour profile");
+        parts.push(chunk);
+      } else gone(r, c.trim());
+      p = end;
+    }
+    if (!clean) return null;
+    var body = join(parts), head = new Uint8Array(12);
+    head.set(b.subarray(0, 4)); head.set(b.subarray(8, 12), 8);
+    new DataView(head.buffer).setUint32(4, body.length + 4, true);
+    return join([head, body]);
+  }
+
+  /* ---- GIF: blocks, some of them notes ---- */
+
+  function gif(b, r, clean, ctx) {
+    function blocks(q) { while (q < b.length && b[q]) q += b[q] + 1; if (q >= b.length) damaged(); return q + 1; }
+    var p = 13;
+    if (b[10] & 0x80) p += 3 * (1 << ((b[10] & 7) + 1));
+    var parts = [b.subarray(0, p)];
+    while (p < b.length) {
+      var at = p, t = b[p];
+      if (t === 0x3B) break;
+      if (t === 0x21) {
+        var label = b[p + 1], end = blocks(p + 2);
+        if (label === 0xFE) {
+          var txt = [];
+          for (var q = p + 2; b[q]; q += b[q] + 1) txt.push(latin(b, q + 1, q + 1 + b[q]));
+          add(r, "other", "Comment", txt.join(""));
+          gone(r, "comment");
+        } else if (label === 0xFF) {
+          var app = ascii(b, p + 3, 11);
+          if (app === "NETSCAPE2.0" || app === "ANIMEXTS1.0") parts.push(b.subarray(at, end));
+          else {
+            if (app === "XMP DataXMP") { xmpRead(r, utf8(b.subarray(p + 14, end)), ctx); gone(r, "XMP"); }
+            else gone(r, tidy(app));
+          }
+        } else parts.push(b.subarray(at, end));
+        p = end;
+      } else if (t === 0x2C) {
+        var q2 = p + 10;
+        if (b[p + 9] & 0x80) q2 += 3 * (1 << ((b[p + 9] & 7) + 1));
+        p = blocks(q2 + 1);
+        parts.push(b.subarray(at, p));
+      } else damaged();
+    }
+    if (!clean) return null;
+    parts.push(new Uint8Array([0x3B]));
+    return join(parts);
+  }
+
+  /* ---- SVG: a drawing written as text ---- */
+
+  var LOCAL = /^(?:file:|[a-z]:[\\\/]|\\\\|\/(?:Users|home)\/)/i;
+
+  function svg(b, r, clean, ctx) {
+    var s = utf8(b), m;
+    (s.match(/<metadata\b[\s\S]*?<\/metadata>/gi) || []).forEach(function (x) { xmpRead(r, x, ctx); gone(r, "metadata"); });
+    var re = /\s(inkscape:export-filename|sodipodi:docname|sodipodi:docbase|sodipodi:absref|inkscape:version)\s*=\s*"([^"]*)"/g;
+    while ((m = re.exec(s))) {
+      if (m[1] === "inkscape:version") add(r, "software", "Made with", "Inkscape " + m[2]);
+      else if (m[1] === "sodipodi:docname") add(r, "other", "Original file name", m[2]);
+      else if (/[\\\/]/.test(m[2])) add(r, "person", "Folder on the author's computer", m[2]);
+    }
+    var links = /\s(?:xlink:)?href\s*=\s*"([^"]*)"/g;
+    while ((m = links.exec(s))) if (LOCAL.test(m[1])) add(r, "person", "Folder on the author's computer", m[1]);
+    var notes = /<!--([\s\S]*?)-->/g;
+    while ((m = notes.exec(s))) {
+      if (/generator|created with|illustrator|inkscape|sketch|figma|affinity/i.test(m[1])) add(r, "software", "Made with", m[1]);
+      else add(r, "other", "Comment", m[1]);
+      gone(r, "comments");
+    }
+    if (/\s(?:sodipodi|inkscape):/.test(s)) gone(r, "editor settings");
+    if (!clean) return null;
+    s = s.replace(/<metadata\b[\s\S]*?<\/metadata>/gi, "").replace(/<metadata\b[^>]*\/>/gi, "")
+      .replace(/<!--[\s\S]*?-->/g, "")
+      .replace(/<sodipodi:namedview\b[^>]*[^\/]>[\s\S]*?<\/sodipodi:namedview>/g, "")
+      .replace(/<sodipodi:namedview\b[^>]*\/>/g, "")
+      .replace(/\s(?:sodipodi|inkscape):[\w.-]+\s*=\s*(?:"[^"]*"|'[^']*')/g, "")
+      .replace(/(\s(?:xlink:)?href\s*=\s*")([^"]*)"/g, function (all, pre, v) { return LOCAL.test(v) ? pre + basename(v) + "\"" : all; });
+    return bytes(s);
+  }
+
+  /* ---- MP4, MOV, HEIC: nested boxes ----
+     Nothing is moved, because these files point at their own contents by
+     position. A box of notes is renamed "free" and zeroed: players skip it,
+     and the bytes around it stay exactly where they were. */
+
+  var XMP_UUID = "be7acfcb97a942e89c71999491e3afac";
+
+  function boxes(b, from, to) {
+    var list = [], p = from;
+    while (p + 8 <= to) {
+      var size = be32(b, p), head = 8;
+      if (size === 1) { if (p + 16 > to) break; size = be32(b, p + 8) * 4294967296 + be32(b, p + 12); head = 16; }
+      else if (size === 0) size = to - p;
+      if (size < head || p + size > to) break;
+      var type = ascii(b, p + 4, 4), uuid = "";
+      if (type === "uuid") for (var i = 0; i < 16; i++) uuid += (b[p + head + i] | 256).toString(16).slice(1);
+      list.push({ type: type, at: p, head: head, data: p + head + (uuid ? 16 : 0), end: p + size, uuid: uuid });
+      p += size;
+    }
+    return list;
+  }
+  function child(b, box, type) { return boxes(b, box.data, box.end).filter(function (c) { return c.type === type; })[0]; }
+  function anything(b, from, to) { for (var i = from; i < to; i++) if (b[i]) return true; return false; }
+
+  function iso(b, r, clean, ctx) {
+    var top = boxes(b, 0, b.length);
+    if (!top.length) damaged();
+    var keys = [];
+
+    function wipe(box, what) {
+      gone(r, what);
+      if (!clean) return;
+      b.set([0x66, 0x72, 0x65, 0x65], box.at + 4);
+      b.fill(0, box.at + box.head, box.end);
+    }
+    // Leftover space often holds an older copy of the notes.
+    function free(box) {
+      if (!anything(b, box.data, box.end)) return;
+      gone(r, "leftover notes in unused space");
+      if (clean) b.fill(0, box.data, box.end);
+    }
+    // Creation and change times: seconds since 1904.
+    function times(box, say) {
+      var v = b[box.data], p = box.data + 4, w = v === 1 ? 8 : 4;
+      if (p + 2 * w > box.end) return;
+      var made = v === 1 ? be32(b, p) * 4294967296 + be32(b, p + 4) : be32(b, p);
+      if (made && say) {
+        var d = new Date((made - 2082844800) * 1000);
+        if (d.getUTCFullYear() > 1970) add(r, "time", ctx.when, when(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes()) + " UTC");
+      }
+      if (anything(b, p, p + 2 * w)) { gone(r, "creation times"); if (clean) b.fill(0, p, p + 2 * w); }
+    }
+
+    // QuickTime text is a length, a language and the words; iTunes-style
+    // entries hold a "data" box instead.
+    function text(box) {
+      if (ascii(b, box.data + 4, 4) === "data") {
+        var d = child(b, box, "data");
+        return d ? utf8(b.subarray(d.data + 8, d.end)) : "";
+      }
+      var n = be16(b, box.data);
+      if (box.data + 4 + n <= box.end) return utf8(b.subarray(box.data + 4, box.data + 4 + n));
+      return utf8(b.subarray(box.data, box.end));
+    }
+
+    var make = "", model = "";
+    function named(name, v, picture) {
+      var k = name.replace(/^com\.(apple\.quicktime|android)\./, "");
+      if (picture) return add(r, "other", "Cover picture", "a picture");
+      if (name === "\u00a9xyz" || k === "location.ISO6709") add(r, "place", ctx.where, iso6709(v));
+      else if (k === "location.name") add(r, "place", "Place named in it", v);
+      else if (name === "\u00a9mak" || k === "make" || k === "manufacturer") make = make || tidy(v);
+      else if (name === "\u00a9mod" || k === "model") model = model || tidy(v);
+      else if (name === "\u00a9swr" || name === "\u00a9too" || name === "\u00a9enc" || k === "software") add(r, "software", "Made with", v);
+      else if (k === "version" && /android/.test(name)) add(r, "software", "Made with", "Android " + v);
+      else if (name === "\u00a9day" || k === "creationdate") add(r, "time", ctx.when, dateText(v) || v);
+      else if (name === "\u00a9aut" || k === "author") add(r, "person", "Author", v);
+      else if (name === "\u00a9cpy" || k === "copyright") add(r, "person", "Copyright", v);
+      else if (name === "\u00a9nam" || k === "title" || k === "displayname") add(r, "other", "Title", v);
+      else if (name === "\u00a9ART" || name === "aART") add(r, "other", "Artist", v);
+      else if (name === "\u00a9alb") add(r, "other", "Album", v);
+      else if (name === "\u00a9cmt" || name === "\u00a9des" || name === "\u00a9inf" || name === "desc" || k === "description" || k === "comment") add(r, "other", "Comment", v);
+    }
+
+    function meta(box) {
+      var start = be32(b, box.data) === 0 ? box.data + 4 : box.data, list = boxes(b, start, box.end);
+      list.forEach(function (k) {
+        if (k.type !== "keys") return;
+        keys = [];
+        for (var i = 0, n = be32(b, k.data + 4), p = k.data + 8; i < n && p + 8 <= k.end; i++) {
+          var sz = be32(b, p);
+          if (sz < 8) break;
+          keys.push(latin(b, p + 8, Math.min(p + sz, k.end)));
+          p += sz;
+        }
+      });
+      list.forEach(function (k) {
+        if (k.type === "ilst") boxes(b, k.data, k.end).forEach(function (item) {
+          var name = item.type, idx = be32(b, item.at + 4);
+          if (b[item.at + 4] === 0 && idx >= 1 && idx <= keys.length) name = keys[idx - 1];
+          var d = child(b, item, "data");
+          if (!d) return;
+          var t = be32(b, d.data) & 0xFFFFFF;
+          if (t === 13 || t === 14 || t === 27) named(name, "", true);
+          else if (t === 1) named(name, utf8(b.subarray(d.data + 8, d.end)));
+        });
+        else if (k.type === "XMP_") xmpRead(r, utf8(b.subarray(k.data, k.end)), ctx);
+      });
+    }
+
+    function udta(box) {
+      boxes(b, box.data, box.end).forEach(function (u) {
+        var t = u.type;
+        if (t.charCodeAt(0) === 0xA9) named(t, text(u));
+        else if (t === "meta") meta(u);
+        else if (t === "XMP_") xmpRead(r, utf8(b.subarray(u.data, u.end)), ctx);
+        else if (t === "loci") {
+          var p = u.data + 6, z = b.indexOf(0, p);
+          if (z < 0 || z + 9 > u.end) return;
+          add(r, "place", "Place named in it", utf8(b.subarray(p, z)));
+          var s32 = function (q) { return be32(b, q) | 0; };
+          add(r, "place", ctx.where, coords(s32(z + 6) / 65536, s32(z + 2) / 65536));
+        } else if (["auth", "cprt", "titl", "dscp", "perf", "albm"].indexOf(t) > -1) {
+          var v = b[u.data + 6] === 0xFE && b[u.data + 7] === 0xFF ? utf16(b.subarray(u.data + 6, u.end), true)
+            : utf8(b.subarray(u.data + 6, u.end));
+          v = v.replace(/\0[\s\S]*$/, "");
+          if (t === "auth") add(r, "person", "Author", v);
+          else if (t === "cprt") add(r, "person", "Copyright", v);
+          else if (t === "perf" || t === "albm") add(r, "other", t === "perf" ? "Artist" : "Album", v);
+          else add(r, "other", t === "titl" ? "Title" : "Description", v);
+        }
+      });
+    }
+
+    function trak(box) {
+      boxes(b, box.data, box.end).forEach(function (c) {
+        if (c.type === "tkhd") times(c, false);
+        else if (c.type === "udta") { udta(c); wipe(c, "user data"); }
+        else if (c.type === "meta") { meta(c); wipe(c, "metadata"); }
+        else if (c.type === "free" || c.type === "skip") free(c);
+        else if (c.type === "mdia") boxes(b, c.data, c.end).forEach(function (m) {
+          if (m.type === "mdhd") times(m, false);
+          var stbl = m.type === "minf" && child(b, m, "stbl"), stsd = stbl && child(b, stbl, "stsd");
+          if (!stsd) return;
+          boxes(b, stsd.data + 8, stsd.end).forEach(function (e) {
+            if (e.type === "gpmd" || e.type === "camm") note(r, "It also has a track that records where the camera was, " +
+              "moment by moment, as action cameras and drones do. This tool cannot remove that track.", true);
+          });
+        });
+      });
+    }
+
+    // HEIC and AVIF keep their notes as items: an EXIF item and an XMP item,
+    // found through a table of where each item's bytes are.
+    function items(box) {
+      var list = boxes(b, box.data + 4, box.end), info = {}, locs = {}, idat = null;
+      function n(p, size) { return size === 8 ? be32(b, p) * 4294967296 + be32(b, p + 4) : size === 4 ? be32(b, p) : size === 2 ? be16(b, p) : 0; }
+      list.forEach(function (k) {
+        if (k.type === "idat") idat = k.data;
+        if (k.type === "iinf") {
+          var v = b[k.data];
+          boxes(b, k.data + (v ? 8 : 6), k.end).forEach(function (e) {
+            var ev = b[e.data];
+            if (e.type !== "infe" || ev < 2) return;
+            var p = e.data + 4 + (ev === 2 ? 2 : 4), id = ev === 2 ? be16(b, e.data + 4) : be32(b, e.data + 4);
+            var type = ascii(b, p + 2, 4), z = b.indexOf(0, p + 6), z2 = z > -1 ? b.indexOf(0, z + 1) : -1;
+            info[id] = { type: type, mime: type === "mime" && z > -1 ? latin(b, z + 1, z2 > -1 && z2 < e.end ? z2 : e.end) : "" };
+          });
+        }
+        if (k.type === "iloc") {
+          var lv = b[k.data], q = k.data + 4;
+          var offSize = b[q] >> 4, lenSize = b[q] & 15, baseSize = b[q + 1] >> 4, idxSize = lv ? b[q + 1] & 15 : 0;
+          q += 2;
+          var count = lv < 2 ? be16(b, q) : be32(b, q);
+          q += lv < 2 ? 2 : 4;
+          for (var i = 0; i < count && q < k.end; i++) {
+            var id = lv < 2 ? be16(b, q) : be32(b, q), how = 0;
+            q += lv < 2 ? 2 : 4;
+            if (lv) { how = be16(b, q) & 15; q += 2; }
+            q += 2;
+            var base = n(q, baseSize); q += baseSize;
+            var ext = be16(b, q), parts = [];
+            q += 2;
+            for (var j = 0; j < ext; j++) {
+              q += idxSize;
+              var off = n(q, offSize); q += offSize;
+              var len = n(q, lenSize); q += lenSize;
+              parts.push({ off: off, len: len });
+            }
+            locs[id] = { how: how, base: base, parts: parts };
+          }
+        }
+      });
+      Object.keys(info).forEach(function (id) {
+        var it = info[id], loc = locs[id];
+        var exif = it.type === "Exif", xmp = it.type === "mime" && /xmp|rdf/i.test(it.mime);
+        if (!(exif || xmp) || !loc) return;
+        if (loc.how > 1 || (loc.how === 1 && idat == null)) fail("This picture stores its notes in a way this tool cannot change yet.");
+        var spans = loc.parts.map(function (e) {
+          var from = (loc.how === 1 ? idat : 0) + loc.base + e.off;
+          return { from: from, to: e.len ? from + e.len : b.length };
+        }).filter(function (s) { return s.from < s.to && s.to <= b.length; });
+        var data = join(spans.map(function (s) { return b.subarray(s.from, s.to); }));
+        var fill = new Uint8Array(data.length);
+        if (exif) {
+          var x = readExif(data, 4 + be32(data, 0));
+          if (x) exifFound(r, x, ctx);
+          gone(r, "EXIF");
+          // An empty but valid EXIF block, so readers do not trip over zeros.
+          if (fill.length >= 18) fill.set([0, 0, 0, 0, 0x4D, 0x4D, 0, 0x2A, 0, 0, 0, 8]);
+        } else {
+          xmpRead(r, utf8(data), ctx);
+          gone(r, "XMP");
+          fill.fill(0x20);
+        }
+        if (!clean) return;
+        var at = 0;
+        spans.forEach(function (s) { b.set(fill.subarray(at, at + s.to - s.from), s.from); at += s.to - s.from; });
+      });
+    }
+
+    top.forEach(function (x) {
+      if (x.type === "moov") {
+        boxes(b, x.data, x.end).forEach(function (c) {
+          if (c.type === "mvhd") times(c, true);
+          else if (c.type === "trak") trak(c);
+          else if (c.type === "udta") { udta(c); wipe(c, "user data"); }
+          else if (c.type === "meta") { meta(c); wipe(c, "metadata"); }
+          else if (c.type === "uuid" && c.uuid === XMP_UUID) { xmpRead(r, utf8(b.subarray(c.data, c.end)), ctx); wipe(c, "XMP"); }
+          else if (c.type === "free" || c.type === "skip") free(c);
+        });
+      } else if (x.type === "meta") {
+        if (child(b, { data: x.data + 4, end: x.end }, "iinf")) items(x);
+        else { meta(x); wipe(x, "metadata"); }
+      } else if (x.type === "udta") { udta(x); wipe(x, "user data"); }
+      else if (x.type === "uuid" && x.uuid === XMP_UUID) { xmpRead(r, utf8(b.subarray(x.data, x.end)), ctx); wipe(x, "XMP"); }
+      else if (x.type === "free" || x.type === "skip") free(x);
+    });
+    add(r, "device", "Phone or camera", camera(make, model));
+    return clean ? b : null;
+  }
+
+  /* ---- MP3: ID3 tags before the sound, and older tags after it ---- */
+
+  var ID3 = { TIT2: ["other", "Title"], TT2: ["other", "Title"], TPE1: ["other", "Artist"], TP1: ["other", "Artist"],
+              TALB: ["other", "Album"], TAL: ["other", "Album"], TYER: ["other", "Year"], TYE: ["other", "Year"],
+              TDRC: ["other", "Year"], TCOM: ["other", "Composer"], TCM: ["other", "Composer"],
+              TENC: ["software", "Made with"], TEN: ["software", "Made with"], TSSE: ["software", "Made with"],
+              TSS: ["software", "Made with"], TCOP: ["person", "Copyright"], TCR: ["person", "Copyright"],
+              TOWN: ["person", "Owner"], TPUB: ["other", "Publisher"] };
+
+  function id3Text(enc, d) {
+    var s = enc === 1 ? utf16(d, false) : enc === 2 ? utf16(d, true) : enc === 3 ? utf8(d) : latin(d);
+    return s.split("\0").filter(Boolean);
+  }
+
+  function id3(r, b, at, end) {
+    var v = b[at + 3], p = at + 10;
+    if (b[at + 5] & 0x40) p += v === 4 ? syncsafe(b, p) : be32(b, p) + 4;
+    while (p + (v === 2 ? 6 : 10) <= end) {
+      var id = ascii(b, p, v === 2 ? 3 : 4), head = v === 2 ? 6 : 10;
+      var size = v === 2 ? b[p + 3] << 16 | b[p + 4] << 8 | b[p + 5] : v === 4 ? syncsafe(b, p + 4) : be32(b, p + 4);
+      if (!/^[A-Z0-9]+$/.test(id) || size <= 0 || p + head + size > end) break;
+      var d = b.subarray(p + head, p + head + size), m = ID3[id];
+      if (m) add(r, m[0], m[1], id3Text(d[0], d.subarray(1)).join(", "));
+      else if (id === "COMM" || id === "COM") add(r, "other", "Comment", id3Text(d[0], d.subarray(4)).pop());
+      else if (id === "APIC" || id === "PIC") add(r, "other", "Cover picture", "a picture");
+      else if (id === "USLT" || id === "ULT") add(r, "other", "Lyrics", "the words of the song");
+      else if (id === "PRIV") add(r, "other", "Other notes", "private data from " + latin(d, 0, Math.max(0, d.indexOf(0))));
+      else if (id === "GEOB" || id === "GEO") add(r, "other", "Other notes", "an attached file");
+      else if (id[0] === "T") add(r, "other", "Other notes", id3Text(d[0], d.subarray(1)).join(": "));
+      p += head + size;
+    }
+  }
+
+  // ID3 tags at the start, however many there are. Returns where the sound begins.
+  function id3Start(b, r) {
+    var p = 0;
+    while (p + 10 <= b.length && ascii(b, p, 3) === "ID3") {
+      var end = p + 10 + syncsafe(b, p + 6) + (b[p + 5] & 0x10 ? 10 : 0);
+      if (end > b.length) damaged();
+      id3(r, b, p, end);
+      gone(r, "ID3 tags");
+      p = end;
+    }
+    return p;
+  }
+
+  function mp3(b, r, clean) {
+    var start = id3Start(b, r), end = b.length, moved = true;
+    while (moved) {
+      moved = false;
+      if (end - start >= 128 && ascii(b, end - 128, 3) === "TAG") {
+        var f = function (o, n) { return latin(b, end - 128 + o, end - 128 + o + n).replace(/\0[\s\S]*$/, ""); };
+        add(r, "other", "Title", f(3, 30)); add(r, "other", "Artist", f(33, 30)); add(r, "other", "Album", f(63, 30));
+        add(r, "other", "Year", f(93, 4)); add(r, "other", "Comment", f(97, 28));
+        end -= 128;
+        if (end - start >= 227 && ascii(b, end - 227, 4) === "TAG+") end -= 227;
+        gone(r, "ID3v1 tag"); moved = true;
+      }
+      if (end - start >= 32 && ascii(b, end - 32, 8) === "APETAGEX") {
+        var size = le32(b, end - 20), whole = size + (le32(b, end - 12) & 0x80000000 ? 32 : 0);
+        if (whole > end - start) damaged();
+        for (var p = end - size, i = 0, n = le32(b, end - 16); i < n && p + 8 < end - 32; i++) {
+          var len = le32(b, p), z = b.indexOf(0, p + 8);
+          if (z < 0 || z >= end) break;
+          var key = latin(b, p + 8, z);
+          var val = utf8(b.subarray(z + 1, z + 1 + len));
+          if (/^cover art/i.test(key)) add(r, "other", "Cover picture", "a picture");
+          else add(r, "other", { title: "Title", artist: "Artist", album: "Album", year: "Year", comment: "Comment" }[key.toLowerCase()] || "Other notes",
+                   /^(title|artist|album|year|comment)$/i.test(key) ? val : key + ": " + val);
+          p = z + 1 + len;
+        }
+        end -= whole;
+        gone(r, "APE tag"); moved = true;
+      }
+      if (end - start >= 15 && ascii(b, end - 9, 9) === "LYRICS200") {
+        var lyrics = parseInt(ascii(b, end - 15, 6), 10);
+        if (!(lyrics >= 0)) damaged();
+        end -= lyrics + 15;
+        add(r, "other", "Lyrics", "the words of the song");
+        gone(r, "Lyrics3 tag"); moved = true;
+      }
+      if (end - start >= 10 && ascii(b, end - 10, 3) === "3DI") {
+        var tag = syncsafe(b, end - 4) + 20;
+        id3(r, b, end - tag, end - 10);
+        end -= tag;
+        gone(r, "ID3 tags"); moved = true;
+      }
+      if (end < start) damaged();
+    }
+    return clean ? b.subarray(start, end) : null;
+  }
+
+  /* ---- FLAC: blocks of notes before the sound ---- */
+
+  var VORBIS = { TITLE: ["other", "Title"], ARTIST: ["other", "Artist"], ALBUM: ["other", "Album"], DATE: ["other", "Year"],
+                 COMMENT: ["other", "Comment"], DESCRIPTION: ["other", "Comment"], ENCODER: ["software", "Made with"],
+                 "ENCODED-BY": ["software", "Made with"], ENCODED_BY: ["software", "Made with"],
+                 COPYRIGHT: ["person", "Copyright"], CONTACT: ["person", "Contact"], LOCATION: ["place", "Place named in it"] };
+
+  function flac(b, r, clean) {
+    var start = id3Start(b, r);
+    if (ascii(b, start, 4) !== "fLaC") damaged();
+    var p = start + 4, keep = [], last = false;
+    while (!last && p + 4 <= b.length) {
+      var type = b[p] & 0x7F, len = b[p + 1] << 16 | b[p + 2] << 8 | b[p + 3], end = p + 4 + len;
+      last = !!(b[p] & 0x80);
+      if (end > b.length) damaged();
+      if (type === 0 || type === 3 || type === 5) keep.push(b.slice(p, end));
+      else if (type === 4) {
+        var q = p + 4, n = le32(b, q);
+        add(r, "software", "Made with", utf8(b.subarray(q + 4, q + 4 + n)));
+        q += 4 + n;
+        for (var i = 0, count = le32(b, q), s = q + 4; i < count && s + 4 <= end; i++) {
+          var kv = utf8(b.subarray(s + 4, s + 4 + le32(b, s))), eq = kv.indexOf("=");
+          var k = kv.slice(0, eq).toUpperCase(), v = kv.slice(eq + 1), m = VORBIS[k];
+          if (k === "METADATA_BLOCK_PICTURE") add(r, "other", "Cover picture", "a picture");
+          else if (m) add(r, m[0], m[1], v);
+          else add(r, "other", "Other notes", k + ": " + v);
+          s += 4 + le32(b, s);
+        }
+        gone(r, "Vorbis comments");
+      } else if (type === 6) { add(r, "other", "Cover picture", "a picture"); gone(r, "picture"); }
+      else if (type === 2) gone(r, "application data");
+      p = end;
+    }
+    if (!clean) return null;
+    keep.forEach(function (k, i) { k[0] = (k[0] & 0x7F) | (i === keep.length - 1 ? 0x80 : 0); });
+    return join([bytes("fLaC")].concat(keep, [b.subarray(p)]));
+  }
+
+  /* ---- WAV: RIFF chunks around the sound ---- */
+
+  var WAV_KEEP = ["fmt ", "data", "fact", "cue ", "smpl", "inst"];
+  var WAV_INFO = { INAM: ["other", "Title"], IART: ["other", "Artist"], IPRD: ["other", "Album"], ICMT: ["other", "Comment"],
+                   ICRD: ["time", "@when"], ISFT: ["software", "Made with"], IENG: ["person", "Engineer"],
+                   ITCH: ["person", "Engineer"], ICOP: ["person", "Copyright"], IKEY: ["other", "Keywords"],
+                   ISBJ: ["other", "Subject"], ISRC: ["other", "Source"] };
+
+  function wav(b, r, clean, ctx) {
+    var parts = [], p = 12;
+    while (p + 8 <= b.length) {
+      var c = ascii(b, p, 4), n = le32(b, p + 4), end = Math.min(p + 8 + n + (n & 1), b.length);
+      if (c === "data" && p + 8 + n > b.length) n = b.length - p - 8;
+      if (WAV_KEEP.indexOf(c) > -1) parts.push(b.subarray(p, end));
+      else {
+        gone(r, c === "LIST" ? "LIST " + ascii(b, p + 8, 4) : c.trim());
+        if (c === "LIST" && ascii(b, p + 8, 4) === "INFO") {
+          for (var q = p + 12; q + 8 <= end;) {
+            var id = ascii(b, q, 4), len = le32(b, q + 4), m = WAV_INFO[id];
+            var v = utf8(b.subarray(q + 8, Math.min(q + 8 + len, end))).replace(/\0[\s\S]*$/, "");
+            if (m) add(r, m[0], m[1] === "@when" ? ctx.when : m[1], m[0] === "time" ? dateText(v) || v : v);
+            else add(r, "other", "Other notes", v);
+            q += 8 + len + (len & 1);
+          }
+        } else if (c === "bext" && n >= 338) {
+          var t = function (o, k) { return latin(b, p + 8 + o, p + 8 + o + k).replace(/\0[\s\S]*$/, ""); };
+          add(r, "other", "Description", t(0, 256));
+          add(r, "device", "Recorder", t(256, 32));
+          add(r, "device", "Serial number", t(288, 32));
+          add(r, "time", ctx.when, dateText(t(320, 10) + " " + t(330, 8)));
+        } else if ((c === "id3 " || c === "ID3 ") && ascii(b, p + 8, 3) === "ID3") id3(r, b, p + 8, p + 8 + n);
+        else if (c === "_PMX") xmpRead(r, utf8(b.subarray(p + 8, p + 8 + n)), ctx);
+        else if (c === "iXML") add(r, "other", "Other notes", "recorder settings (iXML)");
+      }
+      p = end;
+    }
+    if (!clean) return null;
+    var body = join(parts), head = b.slice(0, 12);
+    new DataView(head.buffer).setUint32(4, body.length + 4, true);
+    return join([head, body]);
+  }
+
+  /* ---- Office and OpenDocument: a zip of XML files ---- */
+
+  function unzip(b) {
+    var e = -1;
+    for (var i = b.length - 22; i >= Math.max(0, b.length - 65557); i--) if (le32(b, i) === 0x06054b50) { e = i; break; }
+    if (e < 0) damaged();
+    var n = le16(b, e + 10), p = le32(b, e + 16), list = [];
+    if (n === 0xFFFF || p === 0xFFFFFFFF) fail("This file is too big for this tool to rebuild.");
+    for (var k = 0; k < n; k++) {
+      if (p + 46 > b.length || le32(b, p) !== 0x02014b50) damaged();
+      var nl = le16(b, p + 28), local = le32(b, p + 42), csize = le32(b, p + 20);
+      if (local + 30 > b.length || le32(b, local) !== 0x04034b50) damaged();
+      var data = local + 30 + le16(b, local + 26) + le16(b, local + 28);
+      if (data + csize > b.length) damaged();
+      list.push({ flags: le16(b, p + 8), method: le16(b, p + 10), crc: le32(b, p + 16), size: le32(b, p + 24),
+                  nameBytes: b.subarray(p + 46, p + 46 + nl), name: utf8(b.subarray(p + 46, p + 46 + nl)),
+                  raw: b.subarray(data, data + csize), extra: le16(b, p + 30) + le16(b, local + 28) });
+      p += 46 + nl + le16(b, p + 30) + le16(b, p + 32);
+    }
+    return { list: list, comment: le16(b, e + 20) };
+  }
+
+  function unpack(e) {
+    if (e.flags & 1) fail("This file is locked with a password. Unlock it first, then try again.");
+    if (e.method === 0) return Promise.resolve(e.raw);
+    if (e.method === 8) return inflateRaw(e.raw);
+    fail("This file is packed in a way this tool cannot read.");
+  }
+
+  // Every entry dated 1 January 1980, the earliest a zip can say, with no extra
+  // fields: those can hold the real times and the owner's user number.
+  function zip(list) {
+    var parts = [], central = [], at = 0;
+    list.forEach(function (e) {
+      var h = new Uint8Array(30), v = new DataView(h.buffer);
+      v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, e.flags & 0x0800, true);
+      v.setUint16(8, e.method, true); v.setUint16(12, 0x21, true); v.setUint32(14, e.crc, true);
+      v.setUint32(18, e.raw.length, true); v.setUint32(22, e.size, true); v.setUint16(26, e.nameBytes.length, true);
+      var c = new Uint8Array(46), w = new DataView(c.buffer);
+      w.setUint32(0, 0x02014b50, true); w.setUint16(4, 20, true); w.setUint16(6, 20, true);
+      w.setUint16(8, e.flags & 0x0800, true); w.setUint16(10, e.method, true); w.setUint16(14, 0x21, true);
+      w.setUint32(16, e.crc, true); w.setUint32(20, e.raw.length, true); w.setUint32(24, e.size, true);
+      w.setUint16(28, e.nameBytes.length, true); w.setUint32(42, at, true);
+      parts.push(h, e.nameBytes, e.raw);
+      central.push(c, e.nameBytes);
+      at += 30 + e.nameBytes.length + e.raw.length;
+    });
+    if (at > 0xFFFFFFFF) fail("This file is too big for this tool to rebuild.");
+    var size = 0;
+    central.forEach(function (c) { size += c.length; });
+    var end = new Uint8Array(22), d = new DataView(end.buffer);
+    d.setUint32(0, 0x06054b50, true); d.setUint16(8, list.length, true); d.setUint16(10, list.length, true);
+    d.setUint32(12, size, true); d.setUint32(16, at, true);
+    return join(parts.concat(central, [end]));
+  }
+
+  var CORE_EMPTY = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n<cp:coreProperties ' +
+    'xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" ' +
+    'xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" ' +
+    'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"></cp:coreProperties>';
+  var APP_EMPTY = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n<Properties ' +
+    'xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" ' +
+    'xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"></Properties>';
+  var CUSTOM_EMPTY = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n<Properties ' +
+    'xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" ' +
+    'xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"></Properties>';
+
+  var CORE = { "dc:creator": ["person", "Author"], "cp:lastModifiedBy": ["person", "Last edited by"],
+               "dcterms:created": ["time", "Created"], "dcterms:modified": ["time", "Last saved"],
+               "cp:lastPrinted": ["time", "Last printed"], "dc:title": ["other", "Title"], "dc:subject": ["other", "Subject"],
+               "cp:keywords": ["other", "Keywords"], "dc:description": ["other", "Description"], "cp:category": ["other", "Category"],
+               "cp:contentStatus": ["other", "Status"], "cp:revision": ["other", "Times saved"],
+               // OpenDocument's meta.xml
+               "meta:initial-creator": ["person", "Author"], "dc:date": ["time", "Last saved"],
+               "meta:creation-date": ["time", "Created"], "meta:print-date": ["time", "Last printed"],
+               "meta:printed-by": ["person", "Last printed by"], "meta:generator": ["software", "Made with"],
+               "meta:keyword": ["other", "Keywords"], "meta:editing-cycles": ["other", "Times saved"] };
+
+  function props(r, s) {
+    var re = /<([\w:-]+)(?:\s[^>]*)?>([^<]*)<\/\1>/g, m;
+    while ((m = re.exec(s))) {
+      var k = m[1], v = xmlText(m[2]), p = CORE[k];
+      // In meta.xml dc:creator is the last person to save it.
+      if (k === "dc:creator" && /office:document-meta/.test(s)) p = ["person", "Last edited by"];
+      if (p) add(r, p[0], p[1], p[0] === "time" ? dateText(v) || v : v);
+      else if (k === "meta:editing-duration") {
+        var d = v.match(/P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?/);
+        if (d) add(r, "other", "Time spent editing", minutes((+d[1] || 0) * 1440 + (+d[2] || 0) * 60 + (+d[3] || 0)));
+      }
+    }
+  }
+
+  // A link to a file on the author's own computer gives away their folders,
+  // and usually their user name. It becomes the bare file name.
+  function paths(r, s, clean) {
+    return s.replace(/(<Relationship\b[^>]*\bTarget=")([^"]*)("[^>]*>)/g, function (all, a, t, z) {
+      var target = xmlText(t);
+      if (!/TargetMode="External"/.test(all) || !LOCAL.test(target)) return all;
+      add(r, "person", "Folder on the author's computer", target.replace(/^file:\/*/, ""));
+      return clean ? a + basename(target).replace(/"/g, "&quot;") + z : all;
+    });
+  }
+
+  function names(r, s, re, label) {
+    var m;
+    while ((m = re.exec(s))) add(r, "person", label, xmlText(m[1]));
+  }
+
+  // Each part of the document, as text: what it says, and the part without it.
+  function part(r, name, s, counts, clean) {
+    var out = s;
+    if (name === "docProps/core.xml") { props(r, s); gone(r, "document properties"); return CORE_EMPTY; }
+    if (name === "docProps/app.xml") {
+      var app = function (k) { var m = s.match(new RegExp("<" + k + ">([^<]*)</" + k + ">")); return m ? xmlText(m[1]) : ""; };
+      add(r, "person", "Company", app("Company"));
+      add(r, "person", "Manager", app("Manager"));
+      add(r, "software", "Made with", tidy(app("Application") + " " + app("AppVersion")));
+      add(r, "other", "Time spent editing", minutes(+app("TotalTime")));
+      var tpl = app("Template");
+      if (/[\\\/]/.test(tpl)) add(r, "person", "Folder on the author's computer", tpl);
+      else if (tpl && !/^Normal\.dot[mx]?$/i.test(tpl)) add(r, "other", "Template", tpl);
+      if (LOCAL.test(app("HyperlinkBase"))) add(r, "person", "Folder on the author's computer", app("HyperlinkBase"));
+      gone(r, "application properties");
+      return APP_EMPTY;
+    }
+    if (name === "docProps/custom.xml") {
+      var re = /<property\b[^>]*\bname="([^"]*)"[^>]*>\s*<vt:\w+>([^<]*)</g, m, list = [];
+      while ((m = re.exec(s))) {
+        var v = xmlText(m[2]);
+        if (/@/.test(v)) add(r, "person", "Email or account", v);
+        list.push(xmlText(m[1]));
+      }
+      if (list.length) add(r, "other", "Extra properties", list.join(", "));
+      gone(r, "custom properties");
+      return CUSTOM_EMPTY;
+    }
+    if (name === "meta.xml") {
+      props(r, s);
+      var tm = s.match(/<meta:template\b[^>]*xlink:href="([^"]*)"/);
+      if (tm && LOCAL.test(xmlText(tm[1]))) add(r, "person", "Folder on the author's computer", xmlText(tm[1]));
+      var um = /<meta:user-defined\b[^>]*meta:name="([^"]*)"[^>]*>([^<]*)</g, u;
+      while ((u = um.exec(s))) add(r, "other", "Extra properties", xmlText(u[1]) + ": " + xmlText(u[2]));
+      gone(r, "document properties");
+      var ver = s.match(/office:version="([^"]*)"/);
+      return '<?xml version="1.0" encoding="UTF-8"?>\n<office:document-meta xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"' +
+        ' xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" office:version="' + (ver ? ver[1] : "1.2") +
+        '"><office:meta/></office:document-meta>';
+    }
+    if (/\.rels$/.test(name)) return paths(r, s, clean);
+
+    if (/^word\//.test(name)) {
+      names(r, s, /\sw:author="([^"]*)"/g, "Comment and change authors");
+      names(r, s, /\sw15:author="([^"]*)"/g, "Comment and change authors");
+      var p, pre = /\sw15:userId="([^"]*)"/g;
+      while ((p = pre.exec(s))) if (/@/.test(p[1])) add(r, "person", "Email or account", xmlText(p[1]));
+      if (name === "word/comments.xml") counts.comments += (s.match(/<w:comment\b/g) || []).length;
+      if (/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/.test(name)) {
+        counts.changes += (s.match(/<w:(ins|del|moveFrom|moveTo|\w+PrChange)\b/g) || []).length;
+        if (/<w:vanish\/>/.test(s)) counts.hidden = true;
+      }
+      if (/\sw:rsid\w*="/.test(s) || /<w:rsids>/.test(s)) gone(r, "editing session numbers");
+      out = s.replace(/\sw:rsid\w*="[^"]*"/g, "").replace(/<w:rsids>[\s\S]*?<\/w:rsids>/g, "")
+        .replace(/(\sw1?5?:author=")[^"]*"/g, "$1" + NOBODY + "\"")
+        .replace(/\sw:initials="[^"]*"/g, "").replace(/\sw:date="[^"]*"/g, "")
+        .replace(/\sw16cex:dateUtc="[^"]*"/g, "")
+        .replace(/<w15:presenceInfo\b[^>]*\/>/g, "");
+    }
+
+    if (/^xl\//.test(name)) {
+      names(r, s, /<author>([^<]*)<\/author>/g, "Comment authors");
+      names(r, s, /<person\b[^>]*\bdisplayName="([^"]*)"/g, "Comment authors");
+      var x, xre = /<person\b[^>]*\buserId="([^"]*)"/g;
+      while ((x = xre.exec(s))) add(r, "person", "Email or account", xmlText(x[1]));
+      names(r, s, /<fileSharing\b[^>]*\buserName="([^"]*)"/g, "Reserved by");
+      var abs = s.match(/<x15ac:absPath\b[^>]*\burl="([^"]*)"/);
+      if (abs) add(r, "person", "Folder on the author's computer", xmlText(abs[1]));
+      if (/^xl\/comments\d*\.xml$/.test(name)) counts.comments += (s.match(/<comment\b/g) || []).length;
+      if (/^xl\/threadedComments\//.test(name)) counts.comments += (s.match(/<threadedComment\b/g) || []).length;
+      if (name === "xl/workbook.xml") {
+        var h, hre = /<sheet\b[^>]*>/g;
+        while ((h = hre.exec(s))) if (/\bstate="(hidden|veryHidden)"/.test(h[0])) {
+          var nm = h[0].match(/\bname="([^"]*)"/);
+          counts.sheets.push(nm ? xmlText(nm[1]) : "?");
+        }
+      }
+      out = s.replace(/<author>[^<]*<\/author>/g, "<author>" + NOBODY + "</author>")
+        .replace(/<person\b[^>]*>/g, function (el) {
+          return el.replace(/(\sdisplayName=")[^"]*"/, "$1" + NOBODY + "\"").replace(/\s(?:userId|providerId)="[^"]*"/g, "");
+        })
+        .replace(/(<fileSharing\b[^>]*?)\suserName="[^"]*"/g, "$1")
+        .replace(/<mc:AlternateContent\b[^>]*>\s*<mc:Choice\b[^>]*>\s*<x15ac:absPath\b[^>]*\/>\s*<\/mc:Choice>\s*<\/mc:AlternateContent>/g, "")
+        .replace(/<x15ac:absPath\b[^>]*\/>/g, "");
+    }
+
+    if (/^ppt\//.test(name)) {
+      names(r, s, /<p:cmAuthor\b[^>]*\bname="([^"]*)"/g, "Comment authors");
+      names(r, s, /<p188:author\b[^>]*\bname="([^"]*)"/g, "Comment authors");
+      var pa, pare = /<p188:author\b[^>]*\buserId="([^"]*)"/g;
+      while ((pa = pare.exec(s))) if (/@/.test(pa[1])) add(r, "person", "Email or account", xmlText(pa[1]));
+      if (/^ppt\/comments\//.test(name)) counts.comments += (s.match(/<p(188)?:cm\b/g) || []).length;
+      if (/^ppt\/slides\/slide\d+\.xml$/.test(name) && /<p:sld\b[^>]*\bshow="0"/.test(s)) counts.slides++;
+      if (/^ppt\/notesSlides\//.test(name)) {
+        var body = s.match(/<p:sp>(?:(?!<\/p:sp>)[\s\S])*?<p:ph\b[^>]*type="body"[\s\S]*?<\/p:sp>/);
+        if (body && /<a:t>[^<]*\S[^<]*<\/a:t>/.test(body[0])) counts.notes++;
+      }
+      out = s.replace(/<p(?:188)?:(?:cmAuthor|author)\b[^>]*>/g, function (el) {
+        return el.replace(/(\sname=")[^"]*"/, "$1" + NOBODY + "\"").replace(/(\sinitials=")[^"]*"/, "$1A\"")
+          .replace(/(\s(?:userId|providerId)=")[^"]*"/g, "$1\"");
+      }).replace(/(<p:cm\b[^>]*?)\sdt="[^"]*"/g, "$1");
+    }
+
+    if (name === "content.xml" || name === "styles.xml") {
+      names(r, s, /<dc:creator>([^<]*)<\/dc:creator>/g, "Comment and change authors");
+      counts.comments += (s.match(/<office:annotation\b/g) || []).length;
+      counts.changes += (s.match(/<text:changed-region\b/g) || []).length;
+      out = s.replace(/<dc:creator>[^<]*<\/dc:creator>/g, "<dc:creator>" + NOBODY + "</dc:creator>")
+        .replace(/<dc:date>[^<]*<\/dc:date>/g, "<dc:date>1980-01-01T00:00:00</dc:date>")
+        .replace(/<meta:creator-initials>[^<]*<\/meta:creator-initials>/g, "");
+    }
+    if (name === "settings.xml") {
+      var pr = s.match(/config:name="PrinterName"[^>]*>([^<]+)</);
+      if (pr) add(r, "device", "Printer", xmlText(pr[1]));
+      out = s.replace(/(config:name="Printer(?:Name|Setup)"[^>]*>)[^<]*</g, "$1<");
+    }
+    return out;
+  }
+
+  async function office(b, r, clean) {
+    var z = unzip(b), list = z.list, has = {};
+    list.forEach(function (e) { has[e.name] = e; });
+    if (z.comment) gone(r, "zip comment");
+    if (list.some(function (e) { return e.extra; })) gone(r, "zip file times");
+    var type = null;
+    if (has["[Content_Types].xml"]) {
+      var first = list.map(function (e) { return e.name.split("/")[0]; });
+      type = first.indexOf("word") > -1 ? "Word file" : first.indexOf("xl") > -1 ? "Excel file"
+        : first.indexOf("ppt") > -1 ? "PowerPoint file" : null;
+    } else if (has.mimetype && /opendocument/.test(utf8(has.mimetype.raw))) type = "OpenDocument file";
+    else if (has.mimetype && /epub/.test(utf8(has.mimetype.raw))) fail("E-books are not supported yet.");
+    if (!type) fail("Zip archives are not checked. Unzip it and check the files inside one by one.");
+    r.type.name = type;
+
+    var counts = { comments: 0, changes: 0, hidden: false, sheets: [], slides: 0, notes: 0, signed: false };
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i], name = e.name, out = null;
+      if (/signature/i.test(name)) counts.signed = true;
+      if (/\.(xml|rels)$/i.test(name)) {
+        var s = utf8(await unpack(e)), t = part(r, name, s, counts, clean);
+        if (t !== s) out = bytes(t);
+      } else if (/\.(jpe?g|png)$/i.test(name)) {
+        var img = await unpack(e), sub = report();
+        try {
+          var copy = /\.png$/i.test(name) ? await png(img, sub, clean, PHOTO) : jpeg(img, sub, clean, PHOTO);
+          inside(r, sub);
+          if (sub.removed.length) gone(r, "notes in pictures");
+          if (copy && sub.removed.length) out = copy;
+        } catch (err) { if (!err.plain) throw err; }
+      }
+      if (out && clean) {
+        e.raw = e.method === 8 ? await deflateRaw(out) : out;
+        e.crc = crc32(out);
+        e.size = out.length;
+      }
+    }
+    var c = counts, said = [];
+    if (c.signed) note(r, "It was digitally signed. The clean copy is no longer signed.");
+    if (c.comments) said.push(c.comments + (c.comments === 1 ? " comment" : " comments"));
+    if (c.changes) said.push("tracked changes");
+    if (said.length) note(r, (said.join(" and ") + (c.comments + (c.changes ? 2 : 0) === 1 ? " is" : " are") +
+      " still in it, without names or dates. Delete or accept them before sending if the text should not be seen.").replace(/^./, function (a) { return a.toUpperCase(); }));
+    if (c.hidden) note(r, "Some text is set to hidden. It does not show on screen, but anyone can turn it back on.");
+    if (c.sheets.length) note(r, "Hidden sheets are still in it: " + c.sheets.join(", ") + ".");
+    if (c.slides) note(r, c.slides + (c.slides === 1 ? " hidden slide is" : " hidden slides are") + " still in it.");
+    if (c.notes) note(r, "Speaker notes on " + c.notes + (c.notes === 1 ? " slide are" : " slides are") + " still in it.");
+    return clean ? zip(list) : null;
+  }
+
+  /* ---- PDF: numbered objects, found by their position ----
+     A PDF lists where every object starts, so nothing may change length.
+     Values are blanked in place with spaces, which PDF readers skip. */
+
+  function ws(c) { return c === 32 || c === 10 || c === 13 || c === 9 || c === 12 || c === 0; }
+  function delim(c) { return ws(c) || "()<>[]{}/%".indexOf(String.fromCharCode(c)) > -1; }
+  function skip(s, p) {
+    for (;;) {
+      var c = s.charCodeAt(p);
+      if (ws(c)) p++;
+      else if (c === 37) { while (p < s.length && s[p] !== "\n" && s[p] !== "\r") p++; }
+      else return p;
+    }
+  }
+
+  // One value starting at p: { type, start, end } plus what it holds.
+  function value(s, p, depth) {
+    p = skip(s, p);
+    if ((depth = depth || 0) > 40 || p >= s.length) return null;
+    var c = s[p], start = p, v;
+    if (c === "<" && s[p + 1] === "<") {
+      var entries = {};
+      p += 2;
+      for (;;) {
+        p = skip(s, p);
+        if (s[p] === ">" && s[p + 1] === ">") return { type: "dict", start: start, end: p + 2, entries: entries };
+        if (s[p] !== "/") return null;
+        var key = value(s, p, depth + 1);
+        if (!key) return null;
+        v = value(s, key.end, depth + 1);
+        if (!v) return null;
+        entries[key.name] = v;
+        p = v.end;
+      }
+    }
+    if (c === "<") { var e = s.indexOf(">", p); return e < 0 ? null : { type: "hex", start: start, end: e + 1 }; }
+    if (c === "(") {
+      for (var d = 0, i = p; i < s.length; i++) {
+        var ch = s[i];
+        if (ch === "\\") i++;
+        else if (ch === "(") d++;
+        else if (ch === ")" && --d === 0) return { type: "string", start: start, end: i + 1 };
+      }
+      return null;
+    }
+    if (c === "[") {
+      var items = [];
+      p++;
+      for (;;) {
+        p = skip(s, p);
+        if (s[p] === "]") return { type: "array", start: start, end: p + 1, items: items };
+        v = value(s, p, depth + 1);
+        if (!v) return null;
+        items.push(v);
+        p = v.end;
+      }
+    }
+    if (c === "/") {
+      for (p++; p < s.length && !delim(s.charCodeAt(p)); p++);
+      return { type: "name", start: start, end: p,
+               name: s.slice(start + 1, p).replace(/#([0-9a-f]{2})/gi, function (a, h) { return String.fromCharCode(parseInt(h, 16)); }) };
+    }
+    var m = /^[+-]?(?:\d+\.?\d*|\.\d+)/.exec(s.slice(p, p + 32));
+    if (m) {
+      var num = { type: "number", start: start, end: p + m[0].length, n: +m[0] };
+      var ref = /^\s+(\d+)\s+R(?![^\s()<>\[\]{}\/%])/.exec(s.slice(num.end, num.end + 24));
+      if (ref && /^\d+$/.test(m[0])) return { type: "ref", start: start, end: num.end + ref[0].length, num: num.n };
+      return num;
+    }
+    var w = /^[a-z]+/.exec(s.slice(p, p + 8));
+    return w ? { type: "word", start: start, end: p + w[0].length } : null;
+  }
+
+  function pdfText(s, t) {
+    var raw = "";
+    if (t.type === "hex") {
+      var h = s.slice(t.start + 1, t.end - 1).replace(/[^0-9a-f]/gi, "");
+      for (var i = 0; i < h.length; i += 2) raw += String.fromCharCode(parseInt((h.substr(i, 2) + "0").slice(0, 2), 16));
+    } else {
+      var lit = s.slice(t.start + 1, t.end - 1);
+      raw = lit.replace(/\\(?:([0-7]{1,3})|(\r\n|\r|\n)|([\s\S]))/g, function (a, oct, nl, ch) {
+        if (oct) return String.fromCharCode(parseInt(oct, 8) & 255);
+        if (nl) return "";
+        return { n: "\n", r: "\r", t: "\t", b: "\b", f: "\f" }[ch] || ch;
+      });
+    }
+    var b = new Uint8Array(raw.length);
+    for (var k = 0; k < raw.length; k++) b[k] = raw.charCodeAt(k);
+    if (b[0] === 0xFE && b[1] === 0xFF) return utf16(b, true);
+    if (b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) return utf8(b.subarray(3));
+    return raw;
+  }
+
+  function filters(d) {
+    var f = d.entries.Filter;
+    return !f ? [] : f.type === "name" ? [f.name] : f.type === "array" ? f.items.map(function (x) { return x.name; }) : ["?"];
+  }
+
+  // A zlib stream of exactly n bytes that unpacks to spaces, for blanking a
+  // packed stream without changing its length.
+  function zlibSpaces(n) {
+    var out = new Uint8Array(n);
+    if (n < 11) return out.fill(0x20);
+    out[0] = 0x78; out[1] = 0x01;
+    var p = 2, left = n - 6, a = 1, s = 0;
+    while (left > 0) {
+      var k = Math.min(65535, left - 5), rest = left - 5 - k;
+      if (rest > 0 && rest < 5) { k -= 5; rest += 5; }
+      out[p] = rest ? 0 : 1; out[p + 1] = k & 255; out[p + 2] = k >> 8; out[p + 3] = ~k & 255; out[p + 4] = (~k >> 8) & 255;
+      out.fill(0x20, p + 5, p + 5 + k);
+      for (var i = 0; i < k; i++) { a = (a + 32) % 65521; s = (s + a) % 65521; }
+      p += 5 + k;
+      left = rest;
+    }
+    out[p] = s >> 8; out[p + 1] = s & 255; out[p + 2] = a >> 8; out[p + 3] = a & 255;
+    return out;
+  }
+
+  var INFO = { Author: ["person", "Author"], Creator: ["software", "Made with"], Producer: ["software", "Made with"],
+               CreationDate: ["time", "Created"], ModDate: ["time", "Last saved"], Company: ["person", "Company"],
+               Manager: ["person", "Manager"], Title: ["other", "Title"], Subject: ["other", "Subject"],
+               Keywords: ["other", "Keywords"], SourceModified: ["time", "Last saved"] };
+  var MARKUP = " Text FreeText Line Square Circle Polygon PolyLine Highlight Underline Squiggly StrikeOut Stamp Caret Ink FileAttachment Sound Redact ";
+
+  async function pdf(b, r, clean) {
+    var s = latin(b);
+    if (/\/Encrypt\s*(?:\d+\s+\d+\s+R|<<)/.test(s)) fail("This PDF is locked. Open it, save a copy without the lock, and try that.");
+
+    // Every object, plain or packed into an object stream.
+    var objs = [], byNum = {}, re = /(\d+)\s+(\d+)\s+obj\b/g, m;
+    var main = { s: s, b: b };
+    function keep(o) { objs.push(o); (byNum[o.num] = byNum[o.num] || []).push(o); }
+    while ((m = re.exec(s))) {
+      if (m.index && !ws(s.charCodeAt(m.index - 1))) continue;
+      var v = value(s, m.index + m[0].length);
+      if (!v) continue;
+      var o = { num: +m[1], v: v, src: main, stream: null };
+      if (v.type === "dict") {
+        var q = skip(s, v.end);
+        if (s.substr(q, 6) === "stream") {
+          q += 6;
+          if (s[q] === "\r") q++;
+          if (s[q] === "\n") q++;
+          var L = v.entries.Length, e = s.indexOf("endstream", q);
+          o.stream = { start: q, len: L && L.type === "number" ? L.n : -1, guess: e < 0 ? b.length - q : e - q };
+          re.lastIndex = o.stream.len > 0 ? Math.min(q + o.stream.len, s.length) : e < 0 ? s.length : e;
+        }
+      }
+      keep(o);
+    }
+    function last(num) { var l = byNum[num]; return l && l[l.length - 1]; }
+    function length(o) {
+      var st = o.stream;
+      if (st.len < 0) {
+        var L = o.v.entries.Length, t = L && L.type === "ref" && last(L.num);
+        st.len = t && t.v.type === "number" ? t.v.n : st.guess;
+      }
+      return Math.min(st.len, b.length - st.start);
+    }
+    function data(o) { return b.subarray(o.stream.start, o.stream.start + length(o)); }
+    function plainFlate(o) { var f = filters(o.v); return f.length === 1 && f[0] === "FlateDecode" && !o.v.entries.DecodeParms; }
+
+    var packs = [];
+    for (var i = 0, n = objs.length; i < n; i++) {
+      var os = objs[i];
+      if (!os.stream || !os.v.entries.Type || os.v.entries.Type.name !== "ObjStm") continue;
+      if (!plainFlate(os)) continue;
+      var dec;
+      try { dec = await inflate(data(os)); } catch (err) { continue; }
+      var ds = latin(dec), first = os.v.entries.First ? os.v.entries.First.n : 0;
+      var head = ds.slice(0, first).trim().split(/\s+/).map(Number), pack = { s: ds, b: dec, host: os, dirty: false };
+      packs.push(pack);
+      for (var k = 0; k + 1 < head.length; k += 2) {
+        var iv = value(ds, first + head[k + 1]);
+        if (iv) keep({ num: head[k], v: iv, src: pack, stream: null });
+      }
+    }
+
+    function blank(src, t) {
+      if (!clean) return;
+      src.b.fill(0x20, t.start, t.end);
+      src.b[t.start] = t.type === "hex" ? 0x3C : 0x28;
+      src.b[t.start + 1] = t.type === "hex" ? 0x3E : 0x29;
+      if (src.host) src.dirty = true;
+    }
+    // A string, or a reference to one.
+    function str(o, t, depth) {
+      if (t.type === "ref") { var target = last(t.num); return target && (depth || 0) < 4 && str(target, target.v, (depth || 0) + 1); }
+      return t.type === "string" || t.type === "hex" ? { src: o.src, t: t } : null;
+    }
+
+    // The document's properties, in every saved version of them.
+    var infos = {}, im, ire = /\/Info\s+(\d+)\s+\d+\s+R/g;
+    while ((im = ire.exec(s))) infos[im[1]] = true;
+    var info = 0;
+    objs.forEach(function (o) {
+      if (!infos[o.num] || o.v.type !== "dict" || o.v.entries.Type) return;
+      info++;
+      Object.keys(o.v.entries).forEach(function (key) {
+        var x = str(o, o.v.entries[key]);
+        if (!x) return;
+        var text = pdfText(x.src.s, x.t), p = INFO[key];
+        if (!tidy(text)) return;
+        if (p) add(r, p[0], p[1], p[0] === "time" ? dateText(text) : text);
+        else add(r, "other", "Other notes", key + ": " + text);
+        blank(x.src, x.t);
+      });
+    });
+    if (info) gone(r, "document properties");
+
+    // Comments drawn on the pages carry their author's name.
+    var notes = 0;
+    objs.forEach(function (o) {
+      var e = o.v.entries;
+      if (o.v.type !== "dict" || !e.Subtype || e.Subtype.type !== "name" || MARKUP.indexOf(" " + e.Subtype.name + " ") < 0) return;
+      notes++;
+      var x = e.T && str(o, e.T);
+      if (!x) return;
+      add(r, "person", "Comment authors", pdfText(x.src.s, x.t));
+      blank(x.src, x.t);
+    });
+    if (notes) note(r, notes + (notes === 1 ? " comment is" : " comments are") + " still on the pages, without names.");
+
+    for (var j = 0; j < objs.length; j++) {
+      var so = objs[j];
+      if (!so.stream) continue;
+      var se = so.v.entries, f = filters(so.v), sub = se.Subtype && se.Subtype.name, typ = se.Type && se.Type.name;
+      if (typ === "Metadata" || sub === "XML") {
+        var raw = data(so);
+        if (f.length === 0) xmpRead(r, utf8(raw), DOC);
+        else if (plainFlate(so)) {
+          try { xmpRead(r, utf8(await inflate(raw)), DOC); } catch (err) { add(r, "other", "Other notes", "an XMP block"); }
+        } else {
+          add(r, "other", "Other notes", "an XMP block");
+          if (clean) fail("This PDF packs its notes in a way this tool cannot change yet.");
+        }
+        gone(r, "XMP");
+        if (clean && f.length) raw.set(zlibSpaces(raw.length));
+        else if (clean) raw.fill(0x20);
+      } else if (sub === "Image" && f.length === 1 && f[0] === "DCTDecode") {
+        var pic = data(so), pr = report();
+        try {
+          jpegRead(pic, pr, PHOTO);
+          inside(r, pr);
+          if (pr.removed.length) gone(r, "notes in pictures");
+          if (clean && pr.removed.length) jpegBlank(pic);
+        } catch (err) { if (!err.plain) throw err; }
+      } else if (typ === "EmbeddedFile") {
+        note(r, "A file is attached inside it. It is kept as it is, so check it on its own.");
+      }
+    }
+
+    // Packed objects that changed are packed again. Packing spaces makes them
+    // smaller, so they fit where they were; the length is rewritten to the
+    // same number of digits.
+    for (var pi = 0; clean && pi < packs.length; pi++) {
+      var pk = packs[pi];
+      if (!pk.dirty) continue;
+      var packed = await deflate(pk.b), room = data(pk.host), L2 = pk.host.v.entries.Length, t = null;
+      if (L2 && L2.type === "number") t = L2;
+      else if (L2 && L2.type === "ref") { var lo = last(L2.num); if (lo && lo.src === main && lo.v.type === "number") t = lo.v; }
+      var width = t ? t.end - t.start : 0, digits = String(packed.length);
+      if (!t || packed.length > room.length || digits.length > width) fail("This PDF packs its notes in a way this tool cannot change yet.");
+      room.fill(0x20);
+      room.set(packed);
+      b.set(bytes(digits.padStart(width, "0")), t.start);
+    }
+
+    var ends = (s.match(/%%EOF/g) || []).length - (/\/Linearized/.test(s.slice(0, 2048)) ? 1 : 0);
+    if (ends > 1) note(r, "It was changed after it was first saved, and the earlier version is still inside. " +
+      "Text that was deleted may still be found. To be rid of it, print the PDF to a new PDF.");
+    return clean ? b : null;
+  }
+
+  /* ---- telling kinds of file apart, by their first bytes ---- */
+
+  var KINDS = {
+    jpeg: ["JPEG", "image/jpeg", PHOTO, jpeg], png: ["PNG", "image/png", PHOTO, png],
+    webp: ["WebP", "image/webp", PHOTO, webp], gif: ["GIF", "image/gif", PHOTO, gif],
+    svg: ["SVG", "image/svg+xml", PHOTO, svg], iso: ["MP4", "video/mp4", VIDEO, iso],
+    mp3: ["MP3", "audio/mpeg", AUDIO, mp3], flac: ["FLAC", "audio/flac", AUDIO, flac],
+    wav: ["WAV", "audio/wav", AUDIO, wav], pdf: ["PDF", "application/pdf", DOC, pdf],
+    zip: ["file", "application/octet-stream", DOC, office]
+  };
+
+  function detect(b) {
+    var head = ascii(b, 0, 12);
+    if (b.length < 8) return { no: "This file is empty." };
+    if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return "jpeg";
+    if (head.slice(0, 4) === "\x89PNG") return "png";
+    if (head.slice(0, 4) === "RIFF" && head.slice(8) === "WEBP") return "webp";
+    if (head.slice(0, 4) === "RIFF" && head.slice(8) === "WAVE") return "wav";
+    if (head.slice(0, 4) === "GIF8") return "gif";
+    if (head.slice(4, 8) === "ftyp") return "iso";
+    if (find(b, "%PDF-", 0, 1024) > -1) return "pdf";
+    if (head.slice(0, 4) === "PK\x03\x04") return "zip";
+    if (head.slice(0, 4) === "fLaC") return "flac";
+    if (head.slice(0, 3) === "ID3") {
+      var after = 10 + syncsafe(b, 6);
+      return ascii(b, after, 4) === "fLaC" ? "flac" : "mp3";
+    }
+    if (b[0] === 0xFF && (b[1] & 0xE0) === 0xE0) return "mp3";
+    if (head.slice(0, 4) === "\xD0\xCF\x11\xE0") return { no: "Older Office files (.doc, .xls, .ppt) are not supported. Open it and save it as .docx, .xlsx or .pptx, then try that." };
+    if (head.slice(0, 4) === "\x1A\x45\xDF\xA3") return { no: "WebM and MKV videos are not supported yet." };
+    if (head.slice(0, 4) === "OggS") return { no: "Ogg and Opus sound files are not supported yet." };
+    if (head.slice(0, 4) === "II*\0" || head.slice(0, 4) === "MM\0*") return { no: "TIFF and camera raw files are not supported. Export the photo as a JPEG, then try that." };
+    if (head.slice(0, 4) === "RIFF" && head.slice(8, 11) === "AVI") return { no: "AVI videos are not supported yet." };
+    var text = utf8(b.subarray(0, 4096)).replace(/^\uFEFF/, "");
+    if (/^\s*</.test(text) && /<svg[\s>]/i.test(text)) return "svg";
+    return { no: "This kind of file is not supported." };
+  }
+
+  function isoKind(b) {
+    var brands = ascii(b, 8, 4);
+    for (var p = 16; p + 4 <= Math.min(be32(b, 0), 64); p += 4) brands += " " + ascii(b, p, 4);
+    if (/avif|avis/.test(brands)) return ["AVIF", "image/avif", PHOTO];
+    if (/hei[cxms]|hev[cx]|mif1|msf1/.test(brands)) return ["HEIC", "image/heic", PHOTO];
+    var major = ascii(b, 8, 4);
+    if (major === "qt  ") return ["MOV", "video/quicktime", VIDEO];
+    if (/^M4[ABP]/.test(major)) return ["M4A", "audio/mp4", AUDIO];
+    if (/^3g/.test(major)) return ["3GP", "video/3gpp", VIDEO];
+    return ["MP4", "video/mp4", VIDEO];
+  }
+
+  // Reads b, and when asked to clean, returns the clean copy. Cleaning may
+  // change b itself: videos are blanked in place rather than copied.
+  async function run(b, clean, k) {
+    var r = report();
+    k = k || detect(b);
+    if (typeof k !== "string") return { r: r, no: k.no };
+    var kind = KINDS[k], type = k === "iso" ? isoKind(b) : kind;
+    r.type = { name: type[0], mime: type[1] };
+    var out = await kind[3](b, r, clean, type[2]);
+    return { r: r, out: out, ctx: type[2], k: k };
+  }
+
+  async function inspect(b) { return (await run(b, false)).r; }
+
+  async function clean(b) {
+    try {
+      var first = await run(b, true);
+      if (first.no) return { ok: false, message: first.no };
+      // Read the copy again, as the next person would.
+      var check = await run(first.out, false, first.k);
+      var r = first.r;
+      return { ok: true, type: r.type, where: first.ctx.where, found: r.found, notes: r.notes, removed: r.removed,
+               kept: r.kept, out: first.out, leftovers: check.no ? [{ label: "unreadable", value: check.no }] : check.r.found };
+    } catch (e) {
+      if (e && e.plain) return { ok: false, message: e.message };
+      return { ok: false, message: "The file looks damaged, or is a variety this tool does not know.", error: e };
+    }
+  }
+
+  return { clean: clean, inspect: inspect, detect: detect, readExif: readExif, zlibSpaces: zlibSpaces,
+           dateText: dateText, iso6709: iso6709, unzip: unzip };
+})();
+
+/* ---------------------------------------------------------------- page ---- */
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var fileEl = $("file"), drop = $("drop"), out = $("out"), dl = $("download");
+  var result = null, run = 0;
+  var ORDER = ["place", "person", "device", "time", "software", "other"];
+
+  function sizeText(n) {
+    if (n < 1000) return n + " bytes";
+    if (n < 1e6) return Math.round(n / 1000) + " KB";
+    return (n / 1e6).toFixed(n < 1e7 ? 1 : 0) + " MB";
+  }
+
+  function state(tone, word, detail) {
+    out.className = "out " + tone;
+    $("verdict").textContent = word;
+    $("detail").textContent = detail;
+  }
+
+  function facts(map) {
+    Object.keys(map).forEach(function (k) { $("s-" + k).textContent = map[k]; });
+  }
+
+  function list(found) {
+    var box = $("found");
+    box.hidden = !!found && !found.length;
+    if (!found) {
+      var p = document.createElement("p");
+      p.className = "empty";
+      p.textContent = "What the file says about you will appear here.";
+      box.replaceChildren(p);
+      return;
+    }
+    var dlist = document.createElement("dl");
+    found.forEach(function (f) {
+      var dt = document.createElement("dt"), dd = document.createElement("dd");
+      dt.textContent = f.label;
+      dd.textContent = f.value;
+      dlist.append(dt, dd);
+    });
+    box.replaceChildren(dlist);
+  }
+
+  function still(notes) {
+    $("still").replaceChildren.apply($("still"), notes.map(function (n) {
+      var li = document.createElement("li");
+      li.textContent = n.text;
+      return li;
+    }));
+  }
+
+  function clearResult() {
+    if (result) URL.revokeObjectURL(result.url);
+    result = null;
+    dl.disabled = true;
+    dl.textContent = "Download clean copy";
+  }
+
+  // The headline is the most personal thing the file gave away.
+  function verdict(res) {
+    var has = function (w) { return res.found.some(function (f) { return f.what === w; }); };
+    if (has("place") || res.notes.some(function (n) { return n.bad; })) {
+      var p = res.found.filter(function (f) { return f.what === "place" && /^Where/.test(f.label); })[0];
+      var where = p ? p.label : res.where;
+      return ["bad", "Shows " + where.charAt(0).toLowerCase() + where.slice(1)];
+    }
+    if (has("person")) return ["bad", "Names who made it"];
+    if (has("device")) return ["warn", "Names the device it came from"];
+    if (has("time")) return ["warn", "Shows when it was made"];
+    if (res.found.length) return ["ok", "Only small details"];
+    return ["ok", "Nothing hidden found"];
+  }
+
+  function show(res, file, size) {
+    if (!res.ok) {
+      state("bad", "Cannot clean this file", res.message);
+      list(null);
+      still([]);
+      facts({ orig: (file.name || "file") + ", " + sizeText(size), copy: "—", removed: "—", kept: "—", checked: "—" });
+      return;
+    }
+    var found = res.found.slice().sort(function (a, b) { return ORDER.indexOf(a.what) - ORDER.indexOf(b.what); });
+    facts({
+      orig: (file.name || "file") + ", " + res.type.name + ", " + sizeText(size) + " (" + size.toLocaleString("en-US") + " bytes)",
+      removed: res.removed.length ? res.removed.join(", ") : "nothing",
+      kept: res.kept.length ? res.kept.join(", ") : "—"
+    });
+    if (res.leftovers.length) {
+      // Should never happen. If it does, the copy is not handed over.
+      state("bad", "Could not clean it", "The copy still held " + res.leftovers.map(function (f) { return f.label.toLowerCase(); }).join(", ") +
+        ", so it is not offered for download.");
+      list(found);
+      still(res.notes);
+      facts({ copy: "not offered", checked: "copy read again: notes left over" });
+      return;
+    }
+    var v = verdict(res);
+    state(v[0], v[1], found.length
+      ? "None of this is in the clean copy."
+      : "It holds no names, places, devices or dates that this tool knows to look for.");
+    list(found);
+    still(res.notes);
+
+    var name = file.name || "file", dot = name.lastIndexOf(".");
+    var stem = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : "";
+    result = { url: URL.createObjectURL(new Blob([res.out], { type: res.type.mime })), name: stem + "-clean" + ext };
+    dl.textContent = "Download clean " + res.type.name;
+    dl.disabled = false;
+    facts({ copy: sizeText(res.out.length) + " (" + res.out.length.toLocaleString("en-US") + " bytes)",
+            checked: "copy read again: nothing left" });
+  }
+
+  async function load(file) {
+    if (!file) return;
+    var token = ++run;
+    clearResult();
+    $("drop-name").textContent = file.name || "Pasted file";
+    $("drop-hint").textContent = "Choose another, or drop one here";
+    state("working", "Reading…", "");
+    list(null);
+    still([]);
+    var b;
+    try { b = new Uint8Array(await file.arrayBuffer()); }
+    catch (e) {
+      if (token !== run) return;
+      state("bad", "Too big to open", "This browser cannot hold a file this big. Try a browser on a computer.");
+      return;
+    }
+    var size = b.length, res = await CLEAN.clean(b);
+    if (token !== run) return;
+    if (res.error) console.error(res.error);
+    show(res, file, size);
+  }
+
+  fileEl.addEventListener("change", function () { load(fileEl.files[0]); });
+
+  document.addEventListener("dragover", function (e) { e.preventDefault(); drop.classList.add("over"); });
+  document.addEventListener("dragleave", function (e) { if (!e.relatedTarget) drop.classList.remove("over"); });
+  document.addEventListener("drop", function (e) {
+    e.preventDefault();
+    drop.classList.remove("over");
+    if (e.dataTransfer && e.dataTransfer.files.length) load(e.dataTransfer.files[0]);
+  });
+  document.addEventListener("paste", function (e) {
+    var files = (e.clipboardData && e.clipboardData.files) || [];
+    if (files.length) { e.preventDefault(); load(files[0]); }
+  });
+  $("form").addEventListener("submit", function (e) { e.preventDefault(); });
+
+  dl.addEventListener("click", function () {
+    if (!result) return;
+    var a = document.createElement("a");
+    a.href = result.url;
+    a.download = result.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    var was = dl.textContent;
+    dl.textContent = "Saved";
+    dl.classList.add("done");
+    setTimeout(function () { dl.textContent = was; dl.classList.remove("done"); }, 1400);
+  });
+})();
+</script>
+</body>
+</html>
