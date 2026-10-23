@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Passphrase maker</title>
+<title>Passphrase generator</title>
 <meta name="description" content="A password made of random everyday words, easy to remember and type, with an honest measure of how hard it is to guess. Free, no ads, no tracking, nothing uploaded.">
 <link rel="stylesheet" href="../shared/base.css">
 <script src="../shared/shell.js"></script>
 <script type="application/json" id="tool">
 {
-  "title": "Passphrase maker",
+  "title": "Passphrase generator",
   "blurb": "A password made of random everyday words, easy to remember and type, with an honest measure of how hard it is to guess.",
   "group": "Passwords",
   "tags": ["passwords", "security"],
@@ -61,12 +61,12 @@
 <body>
 
 <header class="topbar">
-  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Passphrase maker</div>
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Passphrase generator</div>
   <div class="spacer"></div>
 </header>
 
 <main>
-  <h1 style="view-transition-name:tool-passphrase">Passphrase maker</h1>
+  <h1 style="view-transition-name:tool-passphrase">Passphrase generator</h1>
   <p class="lede">Random everyday words: easy to remember and type, far too many combinations to guess.</p>
 
   <div style="margin-top:28px">
@@ -271,7 +271,7 @@ var PP = (function () {
     };
   }
 
-  /* ---- putting numbers into words, the same scale as the password maker ---- */
+  /* ---- putting numbers into words, the same scale as the password generator ---- */
 
   function round(x) { return x >= 10 ? String(Math.round(x)) : (Math.round(x * 10) / 10).toString(); }
 

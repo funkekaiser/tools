@@ -1,4 +1,4 @@
-/* Verifies the cleaning module that ships inside tools/hidden.html. The module
+/* Verifies the cleaning module that ships inside tools/metadata.html. The module
    is lifted straight out of the page, so this checks the code users actually
    run, not a copy of it. Node built-ins only.
 
@@ -15,12 +15,12 @@ import { dirname, join } from 'node:path';
 import zlib from 'node:zlib';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const page = readFileSync(join(root, 'tools', 'hidden.html'), 'utf8');
+const page = readFileSync(join(root, 'tools', 'metadata.html'), 'utf8');
 
 const start = page.indexOf('var CLEAN = (function () {');
 const end = page.indexOf('\n})();', start);
 if (start < 0 || end < 0) {
-  console.error('could not find the clean module in tools/hidden.html');
+  console.error('could not find the clean module in tools/metadata.html');
   process.exit(1);
 }
 const CLEAN = new Function(page.slice(start, end + 6) + '\nreturn CLEAN;')();
@@ -619,5 +619,5 @@ console.log(`refusing: ${refused.length} kinds of file turned away with a reason
   console.log(`damage: ${tried} broken files, none crashed, ${handed} cleaned and re-checked`);
 }
 
-console.log(fails ? `\n${fails} failure(s)` : '\nall hidden-info tests passed');
+console.log(fails ? `\n${fails} failure(s)` : '\nall metadata tests passed');
 process.exit(fails ? 1 : 0);
