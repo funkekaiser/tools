@@ -100,6 +100,20 @@ These choices are settled and recorded so they are not quietly undone later.
 - **The front page has no search box until it needs one.** build.mjs leaves the search out while
   there are fewer than six tools: a labelled input and a count above three cards you can see at a
   glance is apparatus. The markup and script are still there, waiting for the seventh tool.
+- **The front page is grouped under plain headings.** `GROUPS` in build.mjs lists them in
+  order, and each tool names its own in the `group` field of its metadata block; the build
+  refuses a group it does not know. Groups are by what you came to do ("Test your devices"),
+  not by technology, and a new heading is worth adding only when it would hold more than one
+  tool. Filter buttons above the search box were considered and rejected as apparatus: the
+  headings sort the page for someone browsing, the search finds things for someone who knows
+  what they want, and a third control would only be a slower version of either.
+- **Search matches words, not strings.** Each word typed must match the start of a word in a
+  tool's title, blurb, tags or keywords, in any order; little words like "my" and "from" are
+  skipped and common endings trimmed, so "flip coin", "coin flip" and "flipping coins" agree.
+  The first version matched the whole query as one substring, so "count words" found nothing
+  while "word count" worked, and "ip" matched "tips". Groups with no matching tool hide their
+  heading. `scripts/test-search.mjs` holds the queries that used to fail; when someone reports
+  a search that missed, add it there and fix the keywords or the matcher until it passes.
 - **The last card asks for the next tool.** build.mjs ends the front-page list with a "Suggest
   a tool" card linking to a new GitHub issue. It is shaped like a tool card but drawn with a
   dashed border and no fill, so it reads as an empty slot rather than a tool. Search skips it
@@ -141,14 +155,16 @@ scripts/test-tone.mjs      checks the pitch, sweep, noise and link maths inside 
 scripts/test-spectrum.mjs  checks the peak, note and axis maths inside tools/spectrum.html
 scripts/test-surround.mjs  checks the channel order, panning and sounds inside tools/surround.html
 scripts/test-passphrase.mjs  checks the word list, generator and count inside tools/passphrase.html
+scripts/test-search.mjs    checks the front-page search finds each tool from real queries
 .github/workflows/build-tool.yml   labelling an issue `build` has Claude build it as a PR
 dist/                      generated, gitignored, what Cloudflare serves
 drafts/                    unfinished experiments, not published
 ```
 
 The metadata block inside each tool is
-`<script type="application/json" id="tool">` holding `{ title, blurb, tags, keywords }`.
-`title` and `blurb` show on the front page; `tags` and `keywords` only feed its search box.
+`<script type="application/json" id="tool">` holding `{ title, blurb, group, tags, keywords }`.
+`title` and `blurb` show on the front page, under the heading named by `group`; `tags` and
+`keywords` only feed its search box.
 
 ## Commands
 
@@ -164,6 +180,7 @@ node scripts/test-tone.mjs             # verify the tone slider, notes, sweeps, 
 node scripts/test-spectrum.mjs         # verify the frequency analyser finds known tones to within a hertz
 node scripts/test-surround.mjs         # verify each speaker gets its own channel and the panning keeps level
 node scripts/test-passphrase.mjs       # verify the passphrase generator and its count
+node scripts/test-search.mjs           # verify the front-page search finds tools from everyday queries
 python3 -m http.server 8000 -d dist    # serve the built site
 ```
 

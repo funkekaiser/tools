@@ -16,8 +16,11 @@ meet. Read CLAUDE.md first if it is not already in context.
 2. **Copy the template.** `cp template/tool.html tools/<slug>.html`. Open it in a browser
    before changing anything, so you have seen the conventions working.
 3. **Fill the head.** `<title>`, the `description` meta, and the metadata block: `title`,
-   `blurb`, `tags`, `keywords`. The `<h1>` text must equal `title` exactly, and its
-   `view-transition-name` must be `tool-<slug>`.
+   `blurb`, `group`, `tags`, `keywords`. The `<h1>` text must equal `title` exactly, and its
+   `view-transition-name` must be `tool-<slug>`. `group` is one of `GROUPS` in
+   `scripts/build.mjs`; add a new heading there only if a second tool would join it. Write
+   `keywords` as the words people type, then add two or three real queries for the tool to
+   `scripts/test-search.mjs` and run it.
 4. **Build the tool** between the comment markers in `<main>`. Leave the head, the
    `.savebar` and the footer exactly as copied.
 5. **Test what you cannot see.** Anything algorithmic gets `scripts/test-<slug>.mjs`,
