@@ -13,8 +13,9 @@ Live at **<https://tools.jof.dev>**
 
 | Tool | What it does |
 |---|---|
-| [QR code maker](https://tools.jof.dev/qr/) | A QR code that joins a Wi-Fi network, saves a contact, opens a link, starts an email, fills in a bank transfer — or just holds your text. Download as an image or for printing. |
-| [Password maker](https://tools.jof.dev/password/) | A strong password in short readable chunks, with an honest measure of how hard it is to guess. |
+| [QR code generator](https://tools.jof.dev/qr/) | A QR code that joins a Wi-Fi network, saves a contact, opens a link, starts an email, fills in a bank transfer — or just holds your text. Download as an image or for printing. |
+| [Password generator](https://tools.jof.dev/password/) | A strong password in short readable chunks, with an honest measure of how hard it is to guess. |
+| [Metadata remover](https://tools.jof.dev/metadata/) | See where a photo was taken, who wrote a document and which phone filmed a video, then download a copy that keeps none of it. |
 
 More to come.
 
