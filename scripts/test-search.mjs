@@ -75,6 +75,10 @@ const FINDS = [
   ['dead pixels', ['screen']],
   ['monitor test', ['screen']],
   ['refresh rate', ['screen']],
+  ['sha256 checker', ['checksum']],
+  ['verify checksum', ['checksum']],
+  ['check md5 hash', ['checksum']],
+  ['is my download corrupted', ['checksum']],
   ['passw', ['password']],          // still typing
   ['QR', ['qr']],
   // sentences: the tool that fits most of the words wins
