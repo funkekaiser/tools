@@ -17,7 +17,7 @@
 }
 </script>
 <style>
-  .split { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 28px; align-items: start;
+  .split { display: grid; grid-template-columns: 1fr minmax(240px, 300px); gap: 28px; align-items: start;
            margin-top: 28px; }
   @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
   .field { margin-bottom: 18px; }
@@ -25,22 +25,35 @@
   [hidden] { display: none !important; }
   .seg button { padding-inline: 8px; }
 
+  .out { display: flex; flex-direction: column; gap: 14px; }
+  .deck { display: flex; flex-direction: column; gap: 18px; padding: 24px 18px 18px; }
+  .readout { text-align: center; }
+  .big { font-size: clamp(30px, 6vw, 46px); font-weight: 650; letter-spacing: -0.02em; line-height: 1.2;
+         margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .readout .note { margin: 10px 0 0; }
+
+  /* The big number is the box the pitch is typed into. The line under it, darker
+     on hover and coloured while typing, is what says it can be changed. */
+  .dial { display: flex; justify-content: center; align-items: baseline; gap: 0.25em; }
+  .dial input.big { width: 7ch; min-width: 2ch; padding: 0 2px; text-align: right; color: var(--ink);
+                    background: transparent; border: 0; border-bottom: 2px solid var(--line); border-radius: 0;
+                    -moz-appearance: textfield; appearance: textfield; }
+  @supports (field-sizing: content) { .dial input.big { width: auto; field-sizing: content; } }
+  .dial input.big::-webkit-inner-spin-button,
+  .dial input.big::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .dial input.big:hover { border-bottom-color: var(--dim); }
+  .dial input.big:focus { border-bottom-color: var(--acc); }
+
   input[type="range"] { display: block; width: 100%; margin: 10px 0 0; accent-color: var(--acc); }
-  .playrow { display: flex; gap: 16px; align-items: center; margin-bottom: 8px; }
+  .tune { display: flex; gap: 6px; justify-content: center; }
+  .tune button { padding-inline: 12px; font-variant-numeric: tabular-nums; }
+
+  .playrow { display: flex; gap: 16px; align-items: center; border-top: 1px solid var(--line); padding-top: 18px; }
   .playrow .vol { flex: 1; }
   .playrow input[type="range"] { margin: 0; }
   #play { font-weight: 600; min-width: 6.5em; padding-block: 12px; }
   #play.on { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
-  #keys, #ios { margin: 0 0 20px; }
-  .tune { display: flex; gap: 6px; }
-  .tune input { flex: 1; min-width: 0; }
-  .tune button { padding-inline: 9px; font-variant-numeric: tabular-nums; }
-
-  .out { display: flex; flex-direction: column; gap: 14px; }
-  .readout { padding: 28px 16px; text-align: center; }
-  .big { font-size: clamp(30px, 6vw, 46px); font-weight: 650; letter-spacing: -0.02em; line-height: 1.2;
-         margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-  .readout .note { margin: 10px 0 0; }
+  #keys, #ios { margin: 0; }
   .warn { color: var(--warn); font-size: 14px; margin: 0; }
 
   details { border-top: 1px solid var(--line); padding-top: 12px; }
@@ -61,23 +74,81 @@
 
 <main>
   <h1 style="view-transition-name:tool-tone">Tone generator</h1>
-  <p class="lede">Choose a tone, a sweep or noise, then press Play. Start quiet and turn it up slowly.</p>
+  <p class="lede">Type a pitch or choose a sweep or noise, then press Play. Start quiet and turn it up slowly.</p>
 
   <div class="split">
-    <form id="form" autocomplete="off">
-      <div class="playrow">
-        <button type="button" id="play" data-primary
-          data-tip="Starts and stops the sound. It fades in and out, so there is no click.">Play</button>
-        <div class="vol">
-          <label for="vol">Volume <span class="note" id="vol-out">20%</span></label>
-          <input type="range" id="vol" min="0" max="100" step="1" value="20"
-            data-tip="Starts low every time the page opens, even from a shared link.">
+    <section class="out" aria-labelledby="result-h">
+      <h2 id="result-h" class="sr">What is playing</h2>
+      <div class="panel deck">
+        <div class="readout">
+          <div class="dial" id="dial">
+            <label class="sr" for="freq">Pitch, in Hz</label>
+            <input type="number" class="big" id="freq" value="440" min="1" max="22000" step="any" inputmode="decimal"
+              data-tip="Type any pitch from 1 to 22,000 Hz. Lower is deeper.">
+            <span class="big" aria-hidden="true">Hz</span>
+          </div>
+          <p class="big" id="big" hidden></p>
+          <p class="note" id="line"></p>
+        </div>
+
+        <div id="for-tone">
+          <div class="tune">
+            <button type="button" data-by="-1" aria-label="Down 1 Hz">−1</button>
+            <button type="button" data-by="-0.1" aria-label="Down 0.1 Hz">−.1</button>
+            <button type="button" data-by="0.1" aria-label="Up 0.1 Hz">+.1</button>
+            <button type="button" data-by="1" aria-label="Up 1 Hz">+1</button>
+          </div>
+          <input type="range" id="slide" min="0" max="1000" step="1" aria-label="Pitch, from 20 to 20,000 Hz"
+            data-tip="Drag across the whole range of hearing, from 20 Hz on the left to 20,000 Hz on the right.">
+        </div>
+
+        <div class="playrow">
+          <button type="button" id="play" data-primary
+            data-tip="Starts and stops the sound. It fades in and out, so there is no click.">Play</button>
+          <div class="vol">
+            <label for="vol">Volume <span class="note" id="vol-out">20%</span></label>
+            <input type="range" id="vol" min="0" max="100" step="1" value="20"
+              data-tip="Starts low every time the page opens, even from a shared link.">
+          </div>
         </div>
       </div>
       <p class="note" id="keys"><kbd>Space</kbd> plays and stops. <kbd>←</kbd> <kbd>→</kbd> move the
         pitch by 1 Hz, with <kbd>Shift</kbd> by 0.1 Hz.</p>
       <p class="note" id="ios" hidden>No sound? Turn off silent mode, then press Play again.</p>
+      <p class="sr" id="status" role="status"></p>
+      <p class="warn" id="warn" hidden></p>
+      <p id="error" class="err" role="alert"></p>
 
+      <div class="actions">
+        <button type="button" id="link"
+          data-tip="Copies a link to this exact sound, to share or bookmark. Volume is left out, so it always starts quiet.">Copy link</button>
+      </div>
+
+      <details>
+        <summary>Technical details</summary>
+        <dl class="facts">
+          <dt>frequency</dt><dd id="s-freq">—</dd>
+          <dt>nearest note</dt><dd id="s-note">—</dd>
+          <dt>period</dt><dd id="s-period">—</dd>
+          <dt>wavelength</dt><dd id="s-wave">—</dd>
+          <dt>sweep rate</dt><dd id="s-rate">—</dd>
+          <dt>waveform</dt><dd id="s-shape">—</dd>
+          <dt>level</dt><dd id="s-level">—</dd>
+          <dt>channels</dt><dd id="s-ch">—</dd>
+          <dt>sample rate</dt><dd id="s-sr">starts with the sound</dd>
+        </dl>
+        <p class="note" style="margin-top:12px">Sound comes from your browser's Web Audio engine: an
+          oscillator for tones and sweeps, and eight seconds of generated noise on a loop. Every start,
+          stop and change glides over about 30 milliseconds, so nothing clicks. "Evenly by ear" is a
+          logarithmic sweep and "evenly by Hz" a linear one. Pink noise is white noise filtered to fall
+          by 3 dB each octave, so every octave carries the same power. Level is in dB below full scale,
+          peak for waves and average for noise; the volume slider is squared, which is closer to how
+          loudness is heard. Square and saw waves are played at half and 60% level. Wavelength is in air
+          at 20 °C. The settings live after the # in the address, which a browser never sends anywhere.</p>
+      </details>
+    </section>
+
+    <form id="form" autocomplete="off">
       <fieldset class="field">
         <legend class="label" id="mode-label">What should it play?</legend>
         <div class="seg" role="group" aria-labelledby="mode-label" data-tip-anchor id="mode">
@@ -89,20 +160,6 @@
             data-tip="A steady hiss with every pitch at once. Useful for setting levels and checking a room.">Noise</button>
         </div>
       </fieldset>
-
-      <div class="field" id="for-tone">
-        <label for="freq">Pitch, in Hz</label>
-        <div class="tune">
-          <input type="number" id="freq" value="440" min="1" max="22000" step="any" inputmode="decimal"
-            data-tip="Any number from 1 to 22,000. Lower is deeper. The buttons beside it move it a little at a time.">
-          <button type="button" data-by="-1" aria-label="Down 1 Hz">−1</button>
-          <button type="button" data-by="-0.1" aria-label="Down 0.1 Hz">−.1</button>
-          <button type="button" data-by="0.1" aria-label="Up 0.1 Hz">+.1</button>
-          <button type="button" data-by="1" aria-label="Up 1 Hz">+1</button>
-        </div>
-        <input type="range" id="slide" min="0" max="1000" step="1" aria-label="Pitch, from 20 to 20,000 Hz"
-          data-tip="Drag across the whole range of hearing, from 20 Hz on the left to 20,000 Hz on the right.">
-      </div>
 
       <div id="for-sweep" hidden>
         <div class="trio field">
@@ -169,45 +226,6 @@
         </div>
       </fieldset>
     </form>
-
-    <section class="out" aria-labelledby="result-h">
-      <h2 id="result-h" class="sr">What is playing</h2>
-      <div class="panel readout">
-        <p class="big" id="big">440 Hz</p>
-        <p class="note" id="line"></p>
-      </div>
-      <p class="sr" id="status" role="status"></p>
-      <p class="warn" id="warn" hidden></p>
-      <p id="error" class="err" role="alert"></p>
-
-      <div class="actions">
-        <button type="button" id="link"
-          data-tip="Copies a link to this exact sound, to share or bookmark. Volume is left out, so it always starts quiet.">Copy link</button>
-      </div>
-
-      <details>
-        <summary>Technical details</summary>
-        <dl class="facts">
-          <dt>frequency</dt><dd id="s-freq">—</dd>
-          <dt>nearest note</dt><dd id="s-note">—</dd>
-          <dt>period</dt><dd id="s-period">—</dd>
-          <dt>wavelength</dt><dd id="s-wave">—</dd>
-          <dt>sweep rate</dt><dd id="s-rate">—</dd>
-          <dt>waveform</dt><dd id="s-shape">—</dd>
-          <dt>level</dt><dd id="s-level">—</dd>
-          <dt>channels</dt><dd id="s-ch">—</dd>
-          <dt>sample rate</dt><dd id="s-sr">starts with the sound</dd>
-        </dl>
-        <p class="note" style="margin-top:12px">Sound comes from your browser's Web Audio engine: an
-          oscillator for tones and sweeps, and eight seconds of generated noise on a loop. Every start,
-          stop and change glides over about 30 milliseconds, so nothing clicks. "Evenly by ear" is a
-          logarithmic sweep and "evenly by Hz" a linear one. Pink noise is white noise filtered to fall
-          by 3 dB each octave, so every octave carries the same power. Level is in dB below full scale,
-          peak for waves and average for noise; the volume slider is squared, which is closer to how
-          loudness is heard. Square and saw waves are played at half and 60% level. Wavelength is in air
-          at 20 °C. The settings live after the # in the address, which a browser never sends anywhere.</p>
-      </details>
-    </section>
   </div>
 </main>
 
@@ -523,8 +541,11 @@ var TONE = (function () {
   function show() {
     var big = $("big"), line = $("line");
     var sweeping = voice && voice.sweep;
+    // A tone's pitch is typed straight into the big number; a sweep or noise
+    // only shows what is playing.
+    $("dial").hidden = s.mode !== "tone";
+    big.hidden = s.mode === "tone";
     if (s.mode === "tone") {
-      big.textContent = TONE.hz(s.f);
       line.textContent = voice ? "Playing " + where() + "." : "Press Play to hear it " + where() + ".";
     } else if (s.mode === "sweep") {
       if (sweeping) {
