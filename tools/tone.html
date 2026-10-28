@@ -34,9 +34,13 @@
   /* The big number is the box the pitch is typed into. The line under it, darker
      on hover and coloured while typing, is what says it can be changed. */
   .dial { display: flex; justify-content: center; align-items: baseline; gap: 0.25em; }
-  .dial input.big { width: 10ch; min-width: 6ch; max-width: 100%; padding: 0 2px; text-align: right; color: var(--ink);
+  /* Wide enough for a whole range like 20000-20000, and the same width whatever
+     is typed, so the box never shrinks to fit a short number. The font is set
+     again here because base.css gives text boxes the body font, which beats .big. */
+  .dial input.big { font: inherit; font-size: clamp(30px, 6vw, 46px); font-weight: 650; letter-spacing: -0.02em;
+                    line-height: 1.2; font-variant-numeric: tabular-nums;
+                    flex: 0 1 11ch; width: 11ch; min-width: 0; padding: 0 2px; text-align: center; color: var(--ink);
                     background: transparent; border: 0; border-bottom: 2px solid var(--line); border-radius: 0; }
-  @supports (field-sizing: content) { .dial input.big { width: auto; field-sizing: content; } }
   .dial input.big:hover { border-bottom-color: var(--dim); }
   .dial input.big:focus { border-bottom-color: var(--acc); }
 
