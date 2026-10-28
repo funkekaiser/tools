@@ -65,6 +65,21 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
   console.log('nudge: steps add up exactly and stop at the ends');
 }
 
+// ---- 2b. the big box: one pitch or a range ----
+{
+  const p = TONE.parsePitch;
+  ok(p('440').f === 440 && p(' 99.5 Hz ').f === 99.5, 'a single pitch is not read as a tone');
+  const r = p('100-1000');
+  ok(r && r.from === 100 && r.to === 1000, 'a range is not read as a sweep');
+  ok(p('1000–100').from === 1000 && p('1000 - 100').to === 100, 'dashes and spaces in a range are not accepted');
+  ok(p('') === null && p('100-') === null && p('-5') === null && p('1-2-3') === null && p('abc') === null,
+    'junk was accepted as a pitch');
+  ok(p('0.5') === null && p('30000') === null && p('100-30000') === null, 'an out-of-range pitch was accepted');
+  const d = TONE.decode('#sweep=100-1000');
+  ok(TONE.pitchText(d) === '100-1000' && TONE.pitchText(TONE.decode('')) === '440', 'the box does not show the settings');
+  console.log('box: tone and range read, junk and out-of-range refused');
+}
+
 // ---- 3. notes ----
 {
   const cases = [

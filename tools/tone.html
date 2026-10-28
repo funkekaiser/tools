@@ -21,7 +21,6 @@
            margin-top: 28px; }
   @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
   .field { margin-bottom: 18px; }
-  .trio { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
   [hidden] { display: none !important; }
   .seg button { padding-inline: 8px; }
 
@@ -35,12 +34,9 @@
   /* The big number is the box the pitch is typed into. The line under it, darker
      on hover and coloured while typing, is what says it can be changed. */
   .dial { display: flex; justify-content: center; align-items: baseline; gap: 0.25em; }
-  .dial input.big { width: 7ch; min-width: 2ch; padding: 0 2px; text-align: right; color: var(--ink);
-                    background: transparent; border: 0; border-bottom: 2px solid var(--line); border-radius: 0;
-                    -moz-appearance: textfield; appearance: textfield; }
+  .dial input.big { width: 10ch; min-width: 6ch; max-width: 100%; padding: 0 2px; text-align: right; color: var(--ink);
+                    background: transparent; border: 0; border-bottom: 2px solid var(--line); border-radius: 0; }
   @supports (field-sizing: content) { .dial input.big { width: auto; field-sizing: content; } }
-  .dial input.big::-webkit-inner-spin-button,
-  .dial input.big::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   .dial input.big:hover { border-bottom-color: var(--dim); }
   .dial input.big:focus { border-bottom-color: var(--acc); }
 
@@ -74,7 +70,7 @@
 
 <main>
   <h1 style="view-transition-name:tool-tone">Tone generator</h1>
-  <p class="lede">Type a pitch or choose a sweep or noise, then press Play. Start quiet and turn it up slowly.</p>
+  <p class="lede">Type a pitch, or two with a dash for a sweep, or choose noise, then press Play. Start quiet and turn it up slowly.</p>
 
   <div class="split">
     <section class="out" aria-labelledby="result-h">
@@ -82,9 +78,9 @@
       <div class="panel deck">
         <div class="readout">
           <div class="dial" id="dial">
-            <label class="sr" for="freq">Pitch, in Hz</label>
-            <input type="number" class="big" id="freq" value="440" min="1" max="22000" step="any" inputmode="decimal"
-              data-tip="Type any pitch from 1 to 22,000 Hz. Lower is deeper.">
+            <label class="sr" for="freq">Pitch, in Hz. A range like 100-1000 is a sweep</label>
+            <input type="text" class="big" id="freq" value="440" autocapitalize="off" spellcheck="false"
+              data-tip="Type a pitch from 1 to 22,000 Hz, like 440. Lower is deeper. Type two pitches with a dash, like 100-1000, for a sweep.">
             <span class="big" aria-hidden="true">Hz</span>
           </div>
           <p class="big" id="big" hidden></p>
@@ -162,22 +158,10 @@
       </fieldset>
 
       <div id="for-sweep" hidden>
-        <div class="trio field">
-          <div>
-            <label for="from">From, Hz</label>
-            <input type="number" id="from" value="20" min="1" max="22000" step="any" inputmode="decimal"
-              data-tip="Where the sweep starts.">
-          </div>
-          <div>
-            <label for="to">To, Hz</label>
-            <input type="number" id="to" value="20000" min="1" max="22000" step="any" inputmode="decimal"
-              data-tip="Where it ends. Lower than From and it sweeps downwards.">
-          </div>
-          <div>
-            <label for="secs">Seconds</label>
-            <input type="number" id="secs" value="10" min="1" max="600" step="any" inputmode="decimal"
-              data-tip="How long the sweep takes, up to ten minutes.">
-          </div>
+        <div class="field">
+          <label for="secs">Seconds</label>
+          <input type="number" id="secs" value="10" min="1" max="600" step="any" inputmode="decimal"
+            data-tip="How long the sweep takes, up to ten minutes. The pitches go in the big box: the first is where it starts, the second where it ends. Start higher than the end and it sweeps downwards.">
         </div>
         <fieldset class="field">
           <legend class="label" id="scale-label">How should it move?</legend>
@@ -282,6 +266,18 @@ var TONE = (function () {
     var x = Math.round(STEPS * Math.log(f / LO) / Math.log(HI / LO));
     return Math.max(0, Math.min(STEPS, x));
   }
+
+  // What is typed in the big box: "440" is a tone, "100-1000" a sweep. Gives
+  // {f}, {from, to}, or null when it is neither or out of range.
+  function parsePitch(text) {
+    var m = /^\s*(\d+(?:\.\d+)?)\s*(?:[-–—]\s*(\d+(?:\.\d+)?))?\s*(?:hz)?\s*$/i.exec(String(text));
+    if (!m) return null;
+    var a = Number(m[1]), b = m[2] === undefined ? null : Number(m[2]);
+    if (!valid(a) || (b !== null && !valid(b))) return null;
+    return b === null ? { f: a } : { from: a, to: b };
+  }
+
+  function pitchText(s) { return s.mode === "sweep" ? round(s.from, 2) + "-" + round(s.to, 2) : String(round(s.f, 2)); }
 
   function nudge(f, by) { return Math.min(MAX, Math.max(MIN, round(f + by, 2))); }
 
@@ -395,7 +391,7 @@ var TONE = (function () {
 
   return { MIN: MIN, MAX: MAX, LO: LO, HI: HI, STEPS: STEPS, TRIM: TRIM, NOISE_RMS: NOISE_RMS,
            DEFAULTS: DEFAULTS, valid: valid, validSecs: validSecs, tidy: tidy,
-           fromSlider: fromSlider, toSlider: toSlider, nudge: nudge, hz: hz, note: note,
+           parsePitch: parsePitch, pitchText: pitchText, fromSlider: fromSlider, toSlider: toSlider, nudge: nudge, hz: hz, note: note,
            sweepAt: sweepAt, level: level, warn: warn, noise: noise, encode: encode, decode: decode };
 })();
 
@@ -541,20 +537,19 @@ var TONE = (function () {
   function show() {
     var big = $("big"), line = $("line");
     var sweeping = voice && voice.sweep;
-    // A tone's pitch is typed straight into the big number; a sweep or noise
-    // only shows what is playing.
-    $("dial").hidden = s.mode !== "tone";
-    big.hidden = s.mode === "tone";
+    // The pitch, or the range for a sweep, is typed straight into the big
+    // number; noise has no pitch, so the big text just says which noise.
+    $("dial").hidden = s.mode === "noise";
+    big.hidden = s.mode !== "noise";
     if (s.mode === "tone") {
       line.textContent = voice ? "Playing " + where() + "." : "Press Play to hear it " + where() + ".";
     } else if (s.mode === "sweep") {
       if (sweeping) {
         var w = voice.sweep, t = ctx.currentTime - voice.start;
-        big.textContent = TONE.hz(TONE.tidy(TONE.sweepAt(w.from, w.to, w.secs, w.scale, t)));
-        line.textContent = (w.to < w.from ? "Falling, " : "Rising, ") +
+        line.textContent = "Now " + TONE.hz(TONE.tidy(TONE.sweepAt(w.from, w.to, w.secs, w.scale, t))) +
+          (w.to < w.from ? ", falling, " : ", rising, ") +
           plural(Math.max(0, Math.ceil(w.secs - t)), "second", "seconds") + " to go, " + where() + ".";
       } else {
-        big.textContent = TONE.hz(s.from) + " → " + TONE.hz(s.to);
         line.textContent = (s.to < s.from ? "Falls" : "Rises") + " over " +
           plural(s.secs, "second", "seconds") + ", " + where() + ".";
       }
@@ -614,14 +609,14 @@ var TONE = (function () {
     pressed("mode", s.mode); pressed("scale", s.scale); pressed("noise", s.noise);
     pressed("wave", s.wave); pressed("ch", s.ch);
     segs.forEach(function (id) { $(id).dispatchEvent(new Event("click")); });
-    freq.value = s.f;
+    writePitch();
     slide.value = TONE.toSlider(s.f);
-    $("from").value = s.from;
-    $("to").value = s.to;
     $("secs").value = s.secs;
     $("vol").value = vol;
     shape();
   }
+
+  function writePitch() { freq.value = TONE.pitchText(s); }
 
   // Everything that follows from a change: what is shown, the facts, the
   // warning and the address.
@@ -649,7 +644,7 @@ var TONE = (function () {
 
   function setFreq(f, from) {
     s.f = f;
-    if (from !== freq) freq.value = f;
+    if (from !== freq) writePitch();
     if (from !== slide) slide.value = TONE.toSlider(f);
     error.textContent = "";
     if (voice && !voice.sweep) glide(voice.src.frequency, f);
@@ -669,7 +664,7 @@ var TONE = (function () {
     });
   }
 
-  choose("mode", "mode", restart);
+  choose("mode", "mode", function () { writePitch(); restart(); });
   choose("scale", "scale", function () { if (voice && voice.sweep) restart(); });
   choose("noise", "noise", restart);
   choose("wave", "wave", restart);
@@ -687,13 +682,38 @@ var TONE = (function () {
     shape();
   });
 
+  // A single pitch plays as you type. A range waits until you leave the box, so
+  // a half-typed one does not keep restarting a sweep.
+  function usePitch(p) {
+    var was = s.mode;
+    error.textContent = "";
+    if (p.f !== undefined) {
+      s.mode = "tone";
+      s.f = p.f;
+      slide.value = TONE.toSlider(p.f);
+    } else {
+      s.mode = "sweep";
+      s.from = p.from;
+      s.to = p.to;
+    }
+    pressed("mode", s.mode);
+    if (voice && s.mode === "tone" && was === "tone") glide(voice.src.frequency, s.f);
+    else if (voice) restart();
+    shape();
+    remember();
+  }
+
   freq.addEventListener("input", function () {
-    var f = Number(freq.value);
-    if (freq.value.trim() === "") return;
-    if (TONE.valid(f)) setFreq(f, freq);
-    else error.textContent = "Pitch: pick a number from 1 to 22,000.";
+    var p = TONE.parsePitch(freq.value);
+    if (p && p.f !== undefined) usePitch(p);
   });
-  freq.addEventListener("change", function () { freq.value = s.f; error.textContent = ""; });
+  freq.addEventListener("change", function () {
+    var p = TONE.parsePitch(freq.value);
+    if (p) usePitch(p);
+    else error.textContent = freq.value.trim() === "" ? "" :
+      "Pitch: type a number from 1 to 22,000, or two with a dash, like 100-1000.";
+    writePitch();
+  });
 
   slide.addEventListener("input", function () { setFreq(TONE.fromSlider(Number(slide.value)), slide); });
 
@@ -704,8 +724,7 @@ var TONE = (function () {
 
   // Sweep numbers take effect when you leave the box, so a half-typed number
   // does not restart a sweep that is playing.
-  [["from", "from", TONE.valid, "From"], ["to", "to", TONE.valid, "To"],
-   ["secs", "secs", TONE.validSecs, "Seconds"]].forEach(function (d) {
+  [["secs", "secs", TONE.validSecs, "Seconds"]].forEach(function (d) {
     var el = $(d[0]);
     el.addEventListener("change", function () {
       var v = Number(el.value);
