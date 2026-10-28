@@ -153,9 +153,7 @@
         <legend class="label" id="mode-label">What should it play?</legend>
         <div class="seg" role="group" aria-labelledby="mode-label" data-tip-anchor id="mode">
           <button type="button" data-v="tone" aria-pressed="true"
-            data-tip="One steady pitch. Use it to check a speaker, find a rattle or test your hearing.">Tone</button>
-          <button type="button" data-v="sweep" aria-pressed="false"
-            data-tip="A pitch that glides from one end to the other. Listen for where it gets quiet, loud or buzzy.">Sweep</button>
+            data-tip="The pitch in the big box. One number, like 440, is a steady tone. Two with a dash, like 100-1000, glide from one to the other.">Tone</button>
           <button type="button" data-v="noise" aria-pressed="false"
             data-tip="A steady hiss with every pitch at once. Useful for setting levels and checking a room.">Noise</button>
         </div>
@@ -600,6 +598,10 @@ var TONE = (function () {
       : w === "loud" ? "That is loud, especially in headphones. Turn it down before you put them on." : "";
   }
 
+  // A sweep has no button of its own: it is what Tone plays when the box holds
+  // a range, so Tone stays pressed for both.
+  function modeButton() { return s.mode === "noise" ? "noise" : "tone"; }
+
   function pressed(id, value) {
     Array.prototype.forEach.call($(id).querySelectorAll("button"), function (b) {
       b.setAttribute("aria-pressed", String(b.dataset.v === value));
@@ -610,7 +612,7 @@ var TONE = (function () {
   // chosen option's explanation under each group and refreshes it on a click,
   // so a click on the group itself, which picks nothing, brings it up to date.
   function sync() {
-    pressed("mode", s.mode); pressed("scale", s.scale); pressed("noise", s.noise);
+    pressed("mode", modeButton()); pressed("scale", s.scale); pressed("noise", s.noise);
     pressed("wave", s.wave); pressed("ch", s.ch);
     segs.forEach(function (id) { $(id).dispatchEvent(new Event("click")); });
     writePitch();
@@ -668,7 +670,19 @@ var TONE = (function () {
     });
   }
 
-  choose("mode", "mode", function () { writePitch(); restart(); });
+  // Back from noise, Tone plays whatever the box held before: a pitch or a range.
+  var pitchMode = "tone";
+  $("mode").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-v]");
+    if (!b || b.dataset.v === modeButton()) return;
+    if (s.mode !== "noise") pitchMode = s.mode;
+    s.mode = b.dataset.v === "noise" ? "noise" : pitchMode;
+    pressed("mode", modeButton());
+    writePitch();
+    shape();
+    remember();
+    restart();
+  });
   choose("scale", "scale", function () { if (voice && voice.sweep) restart(); });
   choose("noise", "noise", restart);
   choose("wave", "wave", restart);
@@ -700,7 +714,7 @@ var TONE = (function () {
       s.from = p.from;
       s.to = p.to;
     }
-    pressed("mode", s.mode);
+    pressed("mode", modeButton());
     if (voice && s.mode === "tone" && was === "tone") glide(voice.src.frequency, s.f);
     else if (voice) restart();
     shape();
