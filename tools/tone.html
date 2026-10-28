@@ -13,7 +13,7 @@
   "blurb": "Play a tone, a sweep or noise through the left, right or both speakers, to test speakers, headphones, rooms and hearing.",
   "group": "Test your devices",
   "tags": ["audio", "sound"],
-  "keywords": ["tone", "frequency", "hz", "hertz", "sine", "square", "triangle", "sawtooth", "sweep", "chirp", "white noise", "pink noise", "speaker", "headphones", "left", "right", "stereo", "channel", "test", "hearing", "bass", "subwoofer", "signal", "generator", "oscillator"]
+  "keywords": ["tone", "frequency", "hz", "hertz", "sine", "square", "triangle", "sawtooth", "sweep", "chirp", "white noise", "pink noise", "brown noise", "brownian noise", "red noise", "green noise", "blue noise", "violet noise", "sleep", "focus", "speaker", "headphones", "left", "right", "stereo", "channel", "test", "hearing", "bass", "subwoofer", "signal", "generator", "oscillator"]
 }
 </script>
 <style>
@@ -23,6 +23,13 @@
   .field { margin-bottom: 18px; }
   [hidden] { display: none !important; }
   .seg button { padding-inline: 8px; }
+  /* Six noises in two rows of three: the soft ones, then the bright ones. */
+  #noise { display: grid; grid-template-columns: repeat(3, 1fr); }
+  #noise button { margin: -1px 0 0 -1px; border-radius: 0; }
+  #noise button:nth-child(1) { border-top-left-radius: 7px; }
+  #noise button:nth-child(3) { border-top-right-radius: 7px; }
+  #noise button:nth-child(4) { border-bottom-left-radius: 7px; }
+  #noise button:nth-child(6) { border-bottom-right-radius: 7px; }
 
   .out { display: flex; flex-direction: column; gap: 14px; }
   .deck { display: flex; flex-direction: column; gap: 18px; padding: 24px 18px 18px; }
@@ -140,8 +147,10 @@
         <p class="note" style="margin-top:12px">Sound comes from your browser's Web Audio engine: an
           oscillator for tones and sweeps, and eight seconds of generated noise on a loop. Every start,
           stop and change glides over about 30 milliseconds, so nothing clicks. "Evenly by ear" is a
-          logarithmic sweep and "evenly by Hz" a linear one. Pink noise is white noise filtered to fall
-          by 3 dB each octave, so every octave carries the same power. Level is in dB below full scale,
+          logarithmic sweep and "evenly by Hz" a linear one. White noise has equal power at every
+          frequency. Pink falls 3 dB each octave, so every octave carries the same power; brown falls
+          6 dB an octave (with nothing below 20 Hz), blue rises 3 dB and violet rises 6 dB. Green is pink noise through a band pass
+          centred on 500 Hz, Q 0.7. Level is in dB below full scale,
           peak for waves and average for noise; the volume slider is squared, which is closer to how
           loudness is heard. Square and saw waves are played at half and 60% level. Wavelength is in air
           at 20 °C. The settings live after the # in the address, which a browser never sends anywhere.</p>
@@ -183,8 +192,16 @@
         <div class="seg" role="group" aria-labelledby="noise-label" data-tip-anchor id="noise">
           <button type="button" data-v="pink" aria-pressed="true"
             data-tip="Sounds even to the ear, like steady rain. The usual choice for speakers and rooms.">Pink</button>
+          <button type="button" data-v="brown" aria-pressed="false"
+            data-tip="Deep and soft, like a waterfall or distant thunder. Mostly bass, with the treble rolled away.">Brown</button>
+          <button type="button" data-v="green" aria-pressed="false"
+            data-tip="Centred on the middle of hearing, around 500 Hz, with less deep bass and less hiss. Like a steady stream.">Green</button>
           <button type="button" data-v="white" aria-pressed="false"
             data-tip="Bright and hissy, like steam. It has as much treble as bass, so it sounds sharp.">White</button>
+          <button type="button" data-v="blue" aria-pressed="false"
+            data-tip="Brighter than white, like a hissing spray. Little bass, a lot of treble.">Blue</button>
+          <button type="button" data-v="violet" aria-pressed="false"
+            data-tip="The sharpest of them, almost all high treble, like a fine high hiss. Very little else.">Violet</button>
         </div>
       </fieldset>
 
@@ -245,7 +262,7 @@ var TONE = (function () {
   var WAVES = ["sine", "square", "triangle", "sawtooth"];
   var CHANNELS = ["left", "both", "right"];
   var SCALES = ["log", "linear"];
-  var NOISES = ["pink", "white"];
+  var NOISES = ["pink", "brown", "green", "white", "blue", "violet"];
   var NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 
   // Square and saw carry strong overtones and sound far louder than a sine at
@@ -321,14 +338,22 @@ var TONE = (function () {
   // n samples of noise that loop without a seam: the tail is cross-faded into
   // the head at equal power, so the end runs smoothly back into the start.
   // Pink is Paul Kellet's filter over white, accurate to a fraction of a dB
-  // across the audible range. Scaled to NOISE_RMS exactly.
-  function noise(kind, n, rand) {
+  // across the audible range. Brown is white through a leaky integrator, which
+  // falls 6 dB an octave, with everything below about 20 Hz taken out. Green is pink through a gentle band
+  // pass at 500 Hz. Blue and violet are the sample-to-sample difference of pink
+  // and white, which tilts each up by 6 dB an octave. Scaled to NOISE_RMS exactly.
+  function noise(kind, n, rand, rate) {
     var m = Math.min(Math.floor(n / 8), 4096), len = n + m, warm = 8192;
     var raw = new Float64Array(len);
     var b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, i, w, p;
+    var pinked = kind === "pink" || kind === "green" || kind === "blue";
+    var brown = 0, hp = 0, hpIn = 0, last = 0, x1 = 0, x2 = 0, y1 = 0, y2 = 0, y;
+    // RBJ band pass, 0 dB at the centre, Q 0.7: a bump about an octave and a half wide.
+    var w0 = 2 * Math.PI * 500 / (rate || 48000), al = Math.sin(w0) / 1.4, a0 = 1 + al;
+    var gb = al / a0, g1 = -2 * Math.cos(w0) / a0, g2 = (1 - al) / a0;
     for (i = -warm; i < len; i++) {
       w = rand() * 2 - 1;
-      if (kind === "pink") {
+      if (pinked) {
         b0 = 0.99886 * b0 + w * 0.0555179;
         b1 = 0.99332 * b1 + w * 0.0750759;
         b2 = 0.96900 * b2 + w * 0.1538520;
@@ -339,6 +364,16 @@ var TONE = (function () {
         b6 = w * 0.115926;
         w = p;
       }
+      if (kind === "brown") {
+        // Then a high pass at about 20 Hz, so inaudible rumble does not use up the level.
+        brown = 0.998 * brown + w;
+        hp = brown - hpIn + 0.997 * hp; hpIn = brown; w = hp;
+      }
+      if (kind === "green") {
+        y = gb * (w - x2) - g1 * y1 - g2 * y2;
+        x2 = x1; x1 = w; y2 = y1; y1 = y; w = y;
+      }
+      if (kind === "blue" || kind === "violet") { p = w - last; last = w; w = p; }
       if (i >= 0) raw[i] = w;
     }
     var out = new Float32Array(n), sum = 0, a;
@@ -447,7 +482,7 @@ var TONE = (function () {
     if (!buffers[kind]) {
       var n = Math.round(ctx.sampleRate * 8);
       var b = ctx.createBuffer(1, n, ctx.sampleRate);
-      b.getChannelData(0).set(TONE.noise(kind, n, Math.random));
+      b.getChannelData(0).set(TONE.noise(kind, n, Math.random, ctx.sampleRate));
       buffers[kind] = b;
     }
     return buffers[kind];
@@ -558,7 +593,7 @@ var TONE = (function () {
           plural(s.secs, "second", "seconds") + ", " + where() + ".";
       }
     } else {
-      big.textContent = s.noise === "pink" ? "Pink noise" : "White noise";
+      big.textContent = s.noise.charAt(0).toUpperCase() + s.noise.slice(1) + " noise";
       line.textContent = voice ? "Playing " + where() + "." : "Press Play to hear it " + where() + ".";
     }
   }

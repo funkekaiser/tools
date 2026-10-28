@@ -150,7 +150,7 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
   // Anything odd is ignored rather than played.
   const bad = ['#tone=0', '#tone=99999', '#tone=1e5', '#tone=-5', '#tone=abc', '#tone=',
     '#wave=organ', '#ch=middle', '#sweep=20', '#sweep=20-0', '#time=0', '#time=601', '#scale=wobbly',
-    '#noise=brown', '#tone=%E0%A4%A', '#vol=100', '#&&=&'];
+    '#noise=grey', '#tone=%E0%A4%A', '#vol=100', '#&&=&'];
   for (const h of bad) ok(same(TONE.decode(h), D), `${h} changed the settings`);
   ok(TONE.decode('#tone=50&ch=nope').f === 50 && TONE.decode('#tone=50&ch=nope').ch === 'both', 'one bad value spoils the rest');
   ok(TONE.decode('#ch=right').mode === 'tone' && TONE.decode('#ch=right').ch === 'right', 'channel alone is not kept');
@@ -214,24 +214,46 @@ function fft(re, im) {
 {
   const rate = 48000, n = rate * 8;
   const centres = [125, 250, 500, 1000, 2000, 4000, 8000];
-  for (const kind of ['white', 'pink']) {
-    const x = TONE.noise(kind, n, mulberry(kind === 'pink' ? 7 : 11));
-    ok(x.length === n && x instanceof Float32Array, `${kind} noise is the wrong length or type`);
-    let sum = 0, peak = 0, head = 0;
-    const m = 4096;
-    for (let i = 0; i < n; i++) { sum += x[i] * x[i]; peak = Math.max(peak, Math.abs(x[i])); if (i < m) head += x[i] * x[i]; }
-    const rms = Math.sqrt(sum / n);
-    ok(near(rms, TONE.NOISE_RMS, 1e-4), `${kind} noise is at ${rms.toFixed(4)} average, not ${TONE.NOISE_RMS}`);
-    ok(peak < 1, `${kind} noise peaks at ${peak.toFixed(3)} and would clip`);
-    // The cross-faded start of the loop is as loud as the rest, not a dip or a bump.
-    const headRms = Math.sqrt(head / m);
-    ok(near(headRms / rms, 1, 0.1), `${kind} noise loop seam is ${(headRms / rms).toFixed(2)}× the level of the rest`);
+  // Power per octave band rises by this many dB each octave. White has equal
+  // power per hertz, so each octave (twice as many hertz) is 3 dB up; pink has
+  // equal power per octave; the rest tilt 6 dB an octave from white or pink.
+  const tilt = { white: 3, pink: 0, brown: -3, blue: 6, violet: 9 };
+  for (const [k, kind] of ['white', 'pink', 'brown', 'green', 'blue', 'violet'].entries()) {
+    // Three takes, with their bands averaged: one take of brown has so little in
+    // its lowest band that chance alone moves it by more than half a dB.
+    const bands = centres.map(() => 0);
+    for (let take = 0; take < 3; take++) {
+      const x = TONE.noise(kind, n, mulberry(k * 16 + take * 4 + 7), rate);
+      ok(x.length === n && x instanceof Float32Array, `${kind} noise is the wrong length or type`);
+      let sum = 0, peak = 0;
+      for (let i = 0; i < n; i++) { sum += x[i] * x[i]; peak = Math.max(peak, Math.abs(x[i])); }
+      const rms = Math.sqrt(sum / n);
+      ok(near(rms, TONE.NOISE_RMS, 1e-4), `${kind} noise is at ${rms.toFixed(4)} average, not ${TONE.NOISE_RMS}`);
+      ok(peak < 1, `${kind} noise peaks at ${peak.toFixed(3)} and would clip`);
+      // The cross-faded start of the loop is about as loud as any other stretch of
+      // the same length. Deep noises wander in level on their own, so the yardstick
+      // is the noise's own spread, with 20% to spare: by chance alone the start is
+      // the loudest or quietest stretch a few times in a hundred, and a fade done
+      // wrong is 30-40% off.
+      const m = 4096, level = (o) => { let q = 0; for (let i = o; i < o + m; i++) q += x[i] * x[i]; return Math.sqrt(q / m) / rms; };
+      const rest = [];
+      for (let o = m; o + m <= n; o += m) rest.push(level(o));
+      const head = level(0), lo = Math.min(...rest) / 1.2, hi = Math.max(...rest) * 1.2;
+      ok(head >= lo && head <= hi, `${kind} noise loop seam is ${head.toFixed(2)}× the level, outside ${lo.toFixed(2)}–${hi.toFixed(2)}`);
+      octaves(x, rate, centres).forEach((b, i) => { bands[i] += b / 3; });
+    }
 
-    const bands = octaves(x, rate, centres);
+    if (kind === 'green') {
+      // A bump at 500 Hz: the loudest band, with the far ends well below it.
+      const top = bands[2];
+      ok(bands.every((b) => b <= top), `green noise peaks at ${centres[bands.indexOf(Math.max(...bands))]} Hz, not 500`);
+      ok(top - bands[0] > 6 && top - bands[bands.length - 1] > 12,
+        `green noise is only ${(top - bands[0]).toFixed(1)} dB down at 125 Hz and ${(top - bands[bands.length - 1]).toFixed(1)} dB at 8 kHz`);
+      console.log(`green noise: level, seam, and ${(top - bands[0]).toFixed(1)} / ${(top - bands[bands.length - 1]).toFixed(1)} dB down at 125 Hz / 8 kHz`);
+      continue;
+    }
     const steps = bands.slice(1).map((b, i) => b - bands[i]);
-    // White: equal power per hertz, so each octave (twice as many hertz) is 3 dB up.
-    // Pink: equal power per octave, so each step is 0 dB.
-    const want = kind === 'white' ? 10 * Math.log10(2) : 0;
+    const want = tilt[kind] / 3 * 10 * Math.log10(2);
     steps.forEach((d, i) => ok(near(d, want, 0.6),
       `${kind} noise: ${centres[i]} → ${centres[i + 1]} Hz changes by ${d.toFixed(2)} dB, not ${want.toFixed(2)}`));
     const span = bands[bands.length - 1] - bands[0];
