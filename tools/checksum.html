@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checksum checker</title>
+<meta name="description" content="Check that a file you downloaded is exactly the one that was published, by comparing its SHA-256, SHA-512, SHA-1 or MD5 checksum. Free, no ads, no tracking, nothing uploaded.">
+<link rel="stylesheet" href="../shared/base.css">
+<script src="../shared/shell.js"></script>
+<script type="application/json" id="tool">
+{
+  "title": "Checksum checker",
+  "blurb": "Check that a file you downloaded is exactly the one that was published, not damaged or swapped along the way.",
+  "group": "Everyday",
+  "tags": ["files", "downloads"],
+  "keywords": ["checksum", "hash", "sha256", "sha-256", "sha512", "sha1", "md5", "verify", "check", "download", "file", "intact", "corrupt", "damaged", "iso", "integrity", "fingerprint", "compare"]
+}
+</script>
+<style>
+  .split { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 28px; align-items: start;
+           margin-top: 28px; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .field { margin-bottom: 20px; }
+
+  .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+          min-height: 108px; padding: 14px; text-align: center; cursor: pointer; margin: 0;
+          border: 1.5px dashed var(--line); border-radius: 10px; background: var(--panel);
+          font-weight: 400; overflow-wrap: anywhere; }
+  .drop strong { font-weight: 600; }
+  .drop:hover, .drop.over { border-color: var(--acc); }
+  .drop:hover strong, .drop.over strong { color: var(--acc); }
+  .drop:focus-within { outline: 2px solid var(--acc); outline-offset: 3px; }
+  #expected { font-family: var(--mono); font-size: 14px; }
+
+  .out { display: flex; flex-direction: column; gap: 12px; }
+  .verdict { font-size: clamp(24px, 4.5vw, 30px); font-weight: 650; letter-spacing: -0.02em;
+             line-height: 1.15; margin: 0; color: var(--ok); }
+  .verdict:empty { display: none; }
+  .working .verdict { color: var(--dim); }
+  .warn .verdict { color: var(--warn); }
+  .bad .verdict { color: var(--bad); }
+  #detail { margin: 0; }
+  #detail:empty { display: none; }
+  #hash-label { margin: 0 0 -6px; }
+  #hash { margin: 0; overflow-wrap: anywhere; }
+
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 14px; }
+  summary:hover { color: var(--acc); }
+  .facts { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px;
+           font-size: 14px; font-family: var(--mono); }
+  .facts dt { color: var(--dim); }
+  .facts dd { margin: 0; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Checksum checker</div>
+  <div class="spacer"></div>
+</header>
+
+<main>
+  <h1 style="view-transition-name:tool-checksum">Checksum checker</h1>
+  <p class="lede">Choose a file you downloaded and paste the checksum from the download page.</p>
+
+  <div class="split">
+    <form id="form" autocomplete="off">
+      <div class="field">
+        <label class="drop" id="drop" for="file"
+          data-tip="Any kind of file, of any size. Big files take a while: roughly a minute for every few gigabytes.">
+          <strong id="drop-name">Choose a file</strong>
+          <span class="note" id="drop-hint">or drop it here</span>
+          <input type="file" id="file" class="sr" data-primary>
+        </label>
+      </div>
+      <div class="field">
+        <label for="expected">Checksum from the website</label>
+        <textarea id="expected" rows="3" spellcheck="false"
+          data-tip="Download pages often show a long code of letters and digits next to the file, called a checksum, SHA-256 or hash. Paste it here. A whole list of them works too."></textarea>
+      </div>
+    </form>
+
+    <section class="out" id="out" aria-labelledby="result-h">
+      <h2 id="result-h" class="sr">The result</h2>
+      <p class="verdict" id="verdict" aria-live="polite"></p>
+      <p class="note" id="detail">The result will appear here.</p>
+      <p class="note" id="hash-label" hidden></p>
+      <p class="mono panel" id="hash" hidden></p>
+
+      <div class="actions">
+        <button type="button" id="copy" disabled
+          data-tip="Puts this file's checksum on your clipboard, to compare somewhere else or send to someone with the same file.">Copy checksum</button>
+      </div>
+
+      <details>
+        <summary>Technical details</summary>
+        <dl class="facts">
+          <dt>size</dt><dd id="f-size">—</dd>
+          <dt>compared</dt><dd id="f-compared">—</dd>
+          <dt>SHA-256</dt><dd id="f-sha256">—</dd>
+          <dt>SHA-512</dt><dd id="f-sha512">—</dd>
+          <dt>SHA-1</dt><dd id="f-sha1">—</dd>
+          <dt>MD5</dt><dd id="f-md5">—</dd>
+        </dl>
+        <p class="note">A checksum is a fingerprint worked out from every byte of the file. Change a
+          single byte and it comes out completely different, so a match means you have the same file
+          the publisher fingerprinted. SHA-256 and SHA-512 cannot be faked. MD5 and SHA-1 are old:
+          they still catch a damaged download, but whoever made a file can make a second one with the
+          same MD5 or SHA-1. A match only proves something if the checksum came from the publisher's
+          own site. SHA-3, BLAKE and CRC checksums are not checked here.</p>
+      </details>
+    </section>
+  </div>
+</main>
+
+<div class="savebar">
+  <button type="button" id="save"
+    data-tip="Downloads this page as one file that keeps working with no internet, even if this website disappears.">Save this tool</button>
+  <p class="hint">Keep your own copy of this page — or press <kbd id="savekey">⌘ S</kbd>.</p>
+</div>
+
+<footer class="foot">
+  <p class="promise">Everything happens on your device. Nothing you type is sent or saved anywhere.</p>
+  <div class="links">
+    <span>Free and <a href="https://github.com/funkekaiser/tools">open source</a>.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+  </div>
+</footer>
+
+<script>
+/* The four hashes, written out here rather than taken from crypto.subtle, because
+   crypto.subtle wants the whole file in memory at once and has no MD5. These take
+   the file a piece at a time, so a 6 GB disc image never has to fit anywhere.
+   scripts/test-checksum.mjs checks them against Node's own. */
+var HASH = (function () {
+  "use strict";
+
+  var TWO32 = 4294967296;
+
+  // The round constants are the fractional parts of roots of primes. Working them
+  // out is shorter than a table of 400 hex digits, and impossible to mistype.
+  var PRIMES = [];
+  for (var n = 2; PRIMES.length < 80; n++) {
+    if (PRIMES.every(function (p) { return n % p; })) PRIMES.push(n);
+  }
+  function iroot(x, k) {   // largest r with r^k <= x
+    var K = BigInt(k), r = 1n << BigInt(Math.ceil(x.toString(2).length / k));
+    for (;;) {
+      var y = ((K - 1n) * r + x / r ** (K - 1n)) / K;
+      if (y >= r) return r;
+      r = y;
+    }
+  }
+  function frac(p, k, bits) {
+    return iroot(BigInt(p) << BigInt(bits * k), k) & ((1n << BigInt(bits)) - 1n);
+  }
+  function words64(list) {   // 64-bit numbers as high, low pairs of 32
+    var out = new Int32Array(list.length * 2);
+    list.forEach(function (v, i) { out[2 * i] = Number(v >> 32n); out[2 * i + 1] = Number(v & 0xffffffffn); });
+    return out;
+  }
+  var K256 = Int32Array.from(PRIMES.slice(0, 64), function (p) { return Number(frac(p, 3, 32)); });
+  var H256 = Int32Array.from(PRIMES.slice(0, 8), function (p) { return Number(frac(p, 2, 32)); });
+  var K512 = words64(PRIMES.map(function (p) { return frac(p, 3, 64); }));
+  var H512 = words64(PRIMES.slice(0, 8).map(function (p) { return frac(p, 2, 64); }));
+  var KMD5 = new Int32Array(64), SMD5 = [7, 12, 17, 22, 5, 9, 14, 20, 4, 11, 16, 23, 6, 10, 15, 21];
+  for (var i = 0; i < 64; i++) KMD5[i] = Math.floor(Math.abs(Math.sin(i + 1)) * TWO32);
+
+  function be(b, o) { return (b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3]; }
+  function le(b, o) { return b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24); }
+
+  var XM = new Int32Array(16);
+  function md5(s, b, o) {
+    for (var i = 0; i < 16; i++) XM[i] = le(b, o + i * 4);
+    var a = s[0], x = s[1], c = s[2], d = s[3], f, g, r;
+    for (i = 0; i < 64; i++) {
+      if (i < 16) { f = (x & c) | (~x & d); g = i; }
+      else if (i < 32) { f = (d & x) | (~d & c); g = (5 * i + 1) & 15; }
+      else if (i < 48) { f = x ^ c ^ d; g = (3 * i + 5) & 15; }
+      else { f = c ^ (x | ~d); g = (7 * i) & 15; }
+      f = (f + a + KMD5[i] + XM[g]) | 0;
+      r = SMD5[(i >> 4) * 4 + (i & 3)];
+      a = d; d = c; c = x;
+      x = (x + ((f << r) | (f >>> (32 - r)))) | 0;
+    }
+    s[0] = (s[0] + a) | 0; s[1] = (s[1] + x) | 0; s[2] = (s[2] + c) | 0; s[3] = (s[3] + d) | 0;
+  }
+
+  var W1 = new Int32Array(80);
+  function sha1(s, b, o) {
+    var W = W1, t, x;
+    for (t = 0; t < 16; t++) W[t] = be(b, o + t * 4);
+    for (; t < 80; t++) { x = W[t - 3] ^ W[t - 8] ^ W[t - 14] ^ W[t - 16]; W[t] = (x << 1) | (x >>> 31); }
+    var a = s[0], c1 = s[1], c = s[2], d = s[3], e = s[4], f, k;
+    for (t = 0; t < 80; t++) {
+      if (t < 20) { f = (c1 & c) | (~c1 & d); k = 0x5a827999; }
+      else if (t < 40) { f = c1 ^ c ^ d; k = 0x6ed9eba1; }
+      else if (t < 60) { f = (c1 & c) | (c1 & d) | (c & d); k = 0x8f1bbcdc; }
+      else { f = c1 ^ c ^ d; k = 0xca62c1d6; }
+      x = (((a << 5) | (a >>> 27)) + f + e + k + W[t]) | 0;
+      e = d; d = c; c = (c1 << 30) | (c1 >>> 2); c1 = a; a = x;
+    }
+    s[0] = (s[0] + a) | 0; s[1] = (s[1] + c1) | 0; s[2] = (s[2] + c) | 0;
+    s[3] = (s[3] + d) | 0; s[4] = (s[4] + e) | 0;
+  }
+
+  var W2 = new Int32Array(64);
+  function sha256(s, b, o) {
+    var W = W2, t, x, y;
+    for (t = 0; t < 16; t++) W[t] = be(b, o + t * 4);
+    for (; t < 64; t++) {
+      x = W[t - 15]; y = W[t - 2];
+      W[t] = (W[t - 16] + W[t - 7]
+        + (((x >>> 7) | (x << 25)) ^ ((x >>> 18) | (x << 14)) ^ (x >>> 3))
+        + (((y >>> 17) | (y << 15)) ^ ((y >>> 19) | (y << 13)) ^ (y >>> 10))) | 0;
+    }
+    var a = s[0], c1 = s[1], c = s[2], d = s[3], e = s[4], f = s[5], g = s[6], h = s[7], t1, t2;
+    for (t = 0; t < 64; t++) {
+      t1 = (h + (((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7)))
+        + ((e & f) ^ (~e & g)) + K256[t] + W[t]) | 0;
+      t2 = ((((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10)))
+        + ((a & c1) ^ (a & c) ^ (c1 & c))) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = c1; c1 = a; a = (t1 + t2) | 0;
+    }
+    s[0] = (s[0] + a) | 0; s[1] = (s[1] + c1) | 0; s[2] = (s[2] + c) | 0; s[3] = (s[3] + d) | 0;
+    s[4] = (s[4] + e) | 0; s[5] = (s[5] + f) | 0; s[6] = (s[6] + g) | 0; s[7] = (s[7] + h) | 0;
+  }
+
+  // SHA-512 works on 64-bit numbers, kept here as pairs of 32: the high half at even
+  // places, the low half after it. Low halves are added as unsigned numbers, and what
+  // overflows past 32 bits is carried into the high half.
+  var W5 = new Int32Array(160);
+  function sha512(s, b, o) {
+    var W = W5, i, xh, xl, s0h, s0l, s1h, s1l, lo;
+    for (i = 0; i < 32; i++) W[i] = be(b, o + i * 4);
+    for (; i < 160; i += 2) {
+      xh = W[i - 30]; xl = W[i - 29];
+      s0h = ((xh >>> 1) | (xl << 31)) ^ ((xh >>> 8) | (xl << 24)) ^ (xh >>> 7);
+      s0l = ((xl >>> 1) | (xh << 31)) ^ ((xl >>> 8) | (xh << 24)) ^ ((xl >>> 7) | (xh << 25));
+      xh = W[i - 4]; xl = W[i - 3];
+      s1h = ((xh >>> 19) | (xl << 13)) ^ ((xl >>> 29) | (xh << 3)) ^ (xh >>> 6);
+      s1l = ((xl >>> 19) | (xh << 13)) ^ ((xh >>> 29) | (xl << 3)) ^ ((xl >>> 6) | (xh << 26));
+      lo = (s1l >>> 0) + (W[i - 13] >>> 0) + (s0l >>> 0) + (W[i - 31] >>> 0);
+      W[i] = s1h + W[i - 14] + s0h + W[i - 32] + (lo / TWO32 | 0);
+      W[i + 1] = lo;
+    }
+    var ah = s[0], al = s[1], bh = s[2], bl = s[3], ch = s[4], cl = s[5], dh = s[6], dl = s[7],
+        eh = s[8], el = s[9], fh = s[10], fl = s[11], gh = s[12], gl = s[13], hh = s[14], hl = s[15],
+        t1h, t1l, t2h, t2l;
+    for (i = 0; i < 160; i += 2) {
+      s1h = ((eh >>> 14) | (el << 18)) ^ ((eh >>> 18) | (el << 14)) ^ ((el >>> 9) | (eh << 23));
+      s1l = ((el >>> 14) | (eh << 18)) ^ ((el >>> 18) | (eh << 14)) ^ ((eh >>> 9) | (el << 23));
+      lo = (hl >>> 0) + (s1l >>> 0) + (((el & fl) ^ (~el & gl)) >>> 0) + (K512[i + 1] >>> 0) + (W[i + 1] >>> 0);
+      t1h = (hh + s1h + ((eh & fh) ^ (~eh & gh)) + K512[i] + W[i] + (lo / TWO32 | 0)) | 0;
+      t1l = lo | 0;
+      s0h = ((ah >>> 28) | (al << 4)) ^ ((al >>> 2) | (ah << 30)) ^ ((al >>> 7) | (ah << 25));
+      s0l = ((al >>> 28) | (ah << 4)) ^ ((ah >>> 2) | (al << 30)) ^ ((ah >>> 7) | (al << 25));
+      lo = (s0l >>> 0) + (((al & bl) ^ (al & cl) ^ (bl & cl)) >>> 0);
+      t2h = (s0h + ((ah & bh) ^ (ah & ch) ^ (bh & ch)) + (lo / TWO32 | 0)) | 0;
+      t2l = lo | 0;
+      hh = gh; hl = gl; gh = fh; gl = fl; fh = eh; fl = el;
+      lo = (dl >>> 0) + (t1l >>> 0);
+      eh = (dh + t1h + (lo / TWO32 | 0)) | 0; el = lo | 0;
+      dh = ch; dl = cl; ch = bh; cl = bl; bh = ah; bl = al;
+      lo = (t1l >>> 0) + (t2l >>> 0);
+      ah = (t1h + t2h + (lo / TWO32 | 0)) | 0; al = lo | 0;
+    }
+    var v = [ah, al, bh, bl, ch, cl, dh, dl, eh, el, fh, fl, gh, gl, hh, hl];
+    for (i = 0; i < 16; i += 2) {
+      lo = (s[i + 1] >>> 0) + (v[i + 1] >>> 0);
+      s[i] = s[i] + v[i] + (lo / TWO32 | 0);
+      s[i + 1] = lo;
+    }
+  }
+
+  function hex(s, little) {
+    var out = "";
+    for (var i = 0; i < s.length; i++) {
+      var w = s[i] >>> 0;
+      if (little) w = ((w & 0xff) << 24 | (w & 0xff00) << 8 | (w >>> 8) & 0xff00 | w >>> 24) >>> 0;
+      out += (w + TWO32).toString(16).slice(1);
+    }
+    return out;
+  }
+
+  // Feeds a file through one block function a piece at a time, keeping the bytes
+  // left over at the end of each piece until the next one arrives.
+  function hasher(size, init, compress, little) {
+    var s = Int32Array.from(init), buf = new Uint8Array(size), have = 0, total = 0;
+    function update(b) {
+      var i = 0, n = b.length;
+      total += n;
+      if (have) {
+        i = Math.min(size - have, n);
+        buf.set(b.subarray(0, i), have);
+        have += i;
+        if (have < size) return;
+        compress(s, buf, 0);
+        have = 0;
+      }
+      for (; i + size <= n; i += size) compress(s, b, i);
+      if (i < n) { buf.set(b.subarray(i), 0); have = n - i; }
+    }
+    return {
+      update: update,
+      digest: function () {
+        // A 1 bit, zeros, then the length in bits, filling out the last block.
+        var lenBytes = size / 8, p = size - have;
+        if (p < 1 + lenBytes) p += size;
+        var pad = new Uint8Array(p), hi = Math.floor(total / 0x20000000), lo = (total % 0x20000000) * 8;
+        pad[0] = 0x80;
+        for (var k = 0; k < 4; k++) {
+          var lb = (lo >>> (8 * k)) & 0xff, hb = (hi >>> (8 * k)) & 0xff;
+          if (little) { pad[p - 8 + k] = lb; pad[p - 4 + k] = hb; }
+          else { pad[p - 1 - k] = lb; pad[p - 5 - k] = hb; }
+        }
+        update(pad);
+        return hex(s, little);
+      }
+    };
+  }
+
+  var KINDS = {
+    md5:    { name: "MD5",     length: 32,  make: function () { return hasher(64, [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476], md5, true); } },
+    sha1:   { name: "SHA-1",   length: 40,  make: function () { return hasher(64, [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0], sha1, false); } },
+    sha256: { name: "SHA-256", length: 64,  make: function () { return hasher(64, H256, sha256, false); } },
+    sha512: { name: "SHA-512", length: 128, make: function () { return hasher(128, H512, sha512, false); } }
+  };
+
+  // All four in one pass over the file, so nothing is read twice.
+  function all() {
+    var hs = {};
+    Object.keys(KINDS).forEach(function (k) { hs[k] = KINDS[k].make(); });
+    return {
+      update: function (b) { for (var k in hs) hs[k].update(b); },
+      digest: function () { var d = {}; for (var k in hs) d[k] = hs[k].digest(); return d; }
+    };
+  }
+
+  var BY_LENGTH = {};
+  Object.keys(KINDS).forEach(function (k) { BY_LENGTH[KINDS[k].length] = k; });
+
+  // Every checksum in what was pasted: a bare code, "sha256sum" output with file
+  // names, "SHA256 (name) = code", or a whole list of them. Each comes with the
+  // rest of its line, which is usually the file it belongs to.
+  function read(text) {
+    var found = [];
+    String(text).split(/\r?\n/).forEach(function (line) {
+      var m, re = /(?:^|[^0-9a-z])([0-9a-f]+)(?![0-9a-z])/gi;
+      while ((m = re.exec(line))) {
+        var kind = BY_LENGTH[m[1].length];
+        if (kind) found.push({ kind: kind, hex: m[1].toLowerCase(), line: line });
+      }
+    });
+    return found;
+  }
+
+  // What to say about this file's checksums against what was pasted.
+  function compare(digests, text, fileName) {
+    if (!String(text).trim()) return { state: "none" };
+    var found = read(text);
+    for (var i = 0; i < found.length; i++) {
+      if (digests[found[i].kind] === found[i].hex) return { state: "match", kind: found[i].kind, hex: found[i].hex };
+    }
+    // Same lengths as ours but another recipe: comparing would only cry wolf.
+    if (/sha-?3|blake|b2sum|keccak|xxh|crc|sha-?224|sha-?384/i.test(text)) return { state: "other" };
+    if (!found.length) return { state: "unreadable" };
+    var named = fileName && found.filter(function (f) { return f.line.indexOf(fileName) >= 0; })[0];
+    var pick = named || found[0];
+    return { state: "mismatch", kind: pick.kind, hex: pick.hex };
+  }
+
+  return { KINDS: KINDS, all: all, read: read, compare: compare };
+})();
+
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var fileEl = $("file"), drop = $("drop"), out = $("out"), expected = $("expected");
+  var CHUNK = 2 << 20;   // small enough that the page never stalls for long
+  var run = 0, file = null, digests = null;
+
+  function state(cls, verdict, detail) {
+    out.className = "out " + cls;
+    $("verdict").textContent = verdict;
+    $("detail").textContent = detail;
+  }
+
+  function sizeText(n) {
+    if (n < 1024) return n + " bytes";
+    var u = ["KB", "MB", "GB", "TB"], i = -1;
+    do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
+    return n.toFixed(n < 10 ? 1 : 0) + " " + u[i];
+  }
+
+  function showHash(kind) {
+    var on = !!(digests && kind);
+    $("hash-label").hidden = $("hash").hidden = !on;
+    $("copy").disabled = !on;
+    if (!on) return;
+    $("hash-label").textContent = "This file's " + HASH.KINDS[kind].name + " checksum";
+    $("hash").textContent = digests[kind];
+    $("copy").dataset.kind = kind;
+  }
+
+  function render() {
+    if (!file) {
+      showHash(null);
+      state("", "", expected.value.trim() ? "Now choose the file." : "The result will appear here.");
+      return;
+    }
+    if (!digests) return;
+    var r = HASH.compare(digests, expected.value, file.name);
+    $("f-compared").textContent = r.kind ? HASH.KINDS[r.kind].name : "—";
+    if (r.state === "match") {
+      var old = r.kind === "md5" || r.kind === "sha1";
+      state(old ? "warn" : "ok", "Matches", old
+        ? "This is the published file. " + HASH.KINDS[r.kind].name + " is an old kind of checksum: it catches a damaged download, not a deliberate fake."
+        : "This is exactly the file that was published.");
+      showHash(r.kind);
+    } else if (r.state === "mismatch") {
+      state("bad", "Does not match", "The file is damaged or is not the one that was published. Do not open it. Download it again from the official site.");
+      showHash(r.kind);
+    } else if (r.state === "unreadable") {
+      state("warn", "Not a checksum", "A checksum is a long run of digits and the letters a to f, usually 64 of them. Copy it again from the download page.");
+      showHash("sha256");
+    } else if (r.state === "other") {
+      state("warn", "Cannot check this kind", "This page checks SHA-256, SHA-512, SHA-1 and MD5. Look for one of those on the download page.");
+      showHash("sha256");
+    } else {
+      state("", "", "Paste the checksum from the download page to compare.");
+      showHash("sha256");
+    }
+  }
+
+  function facts(d) {
+    ["sha256", "sha512", "sha1", "md5"].forEach(function (k) { $("f-" + k).textContent = d ? d[k] : "—"; });
+  }
+
+  async function load(f) {
+    if (!f) return;
+    var token = ++run;
+    file = f; digests = null;
+    $("drop-name").textContent = f.name || "Pasted file";
+    $("drop-hint").textContent = "Choose another, or drop one here";
+    $("f-size").textContent = sizeText(f.size) + (f.size >= 1024 ? " (" + f.size.toLocaleString("en-US") + " bytes)" : "");
+    $("f-compared").textContent = "—";
+    facts(null);
+    showHash(null);
+    state("working", "Checking…", "");
+    var h = HASH.all();
+    try {
+      for (var off = 0; off < f.size; off += CHUNK) {
+        var piece = new Uint8Array(await f.slice(off, off + CHUNK).arrayBuffer());
+        if (token !== run) return;
+        h.update(piece);
+        $("verdict").textContent = "Checking… " + Math.floor(Math.min(off + CHUNK, f.size) / f.size * 100) + "%";
+      }
+    } catch (e) {
+      if (token !== run) return;
+      file = null;
+      state("bad", "Could not read the file", "It may have been moved or deleted while it was being read. Choose it again.");
+      return;
+    }
+    digests = h.digest();
+    facts(digests);
+    render();
+  }
+
+  fileEl.addEventListener("change", function () { load(fileEl.files[0]); });
+  expected.addEventListener("input", render);
+
+  document.addEventListener("dragover", function (e) { e.preventDefault(); drop.classList.add("over"); });
+  document.addEventListener("dragleave", function (e) { if (!e.relatedTarget) drop.classList.remove("over"); });
+  document.addEventListener("drop", function (e) {
+    e.preventDefault();
+    drop.classList.remove("over");
+    if (e.dataTransfer && e.dataTransfer.files.length) load(e.dataTransfer.files[0]);
+  });
+  $("form").addEventListener("submit", function (e) { e.preventDefault(); });
+
+  function flash(btn, msg) {
+    var was = btn.textContent;
+    btn.textContent = msg;
+    btn.classList.add("done");
+    setTimeout(function () { btn.textContent = was; btn.classList.remove("done"); }, 1400);
+  }
+  $("copy").addEventListener("click", function (e) {
+    var btn = e.currentTarget, text = $("hash").textContent;
+    if (!navigator.clipboard || !navigator.clipboard.writeText) { flash(btn, "Press ⌘ C"); return; }
+    navigator.clipboard.writeText(text)
+      .then(function () { flash(btn, "Copied"); })
+      .catch(function () { flash(btn, "Press ⌘ C"); });
+  });
+})();
+</script>
+
+</body>
+</html>

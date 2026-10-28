@@ -179,6 +179,7 @@ scripts/test-surround.mjs  checks the channel order, panning and sounds inside t
 scripts/test-passphrase.mjs  checks the word list, generator and count inside tools/passphrase.html
 scripts/test-search.mjs    checks the front-page search finds each tool from real queries
 scripts/test-metadata.mjs  checks every kind of hidden note is found and cut out by tools/metadata.html
+scripts/test-checksum.mjs  checks the four hashes and the paste reader inside tools/checksum.html
 .github/workflows/build-tool.yml   labelling an issue `build` has Claude build it as a PR
 dist/                      generated, gitignored, what Cloudflare serves
 drafts/                    unfinished experiments, not published
@@ -205,6 +206,7 @@ node scripts/test-surround.mjs         # verify each speaker gets its own channe
 node scripts/test-passphrase.mjs       # verify the passphrase generator and its count
 node scripts/test-search.mjs           # verify the front-page search finds tools from everyday queries
 node scripts/test-metadata.mjs         # verify no planted name, place or date survives cleaning
+node scripts/test-checksum.mjs         # verify MD5, SHA-1, SHA-256 and SHA-512 against Node's own
 python3 -m http.server 8000 -d dist    # serve the built site
 ```
 
