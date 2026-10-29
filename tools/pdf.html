@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Merge and split PDFs</title>
+<meta name="description" content="Join PDFs into one, keep only the pages you need, put them in a new order, or split a PDF into one file per page. Free, no ads, no tracking, nothing uploaded.">
+<link rel="stylesheet" href="../shared/base.css">
+<script src="../shared/shell.js"></script>
+<script type="application/json" id="tool">
+{
+  "title": "Merge and split PDFs",
+  "blurb": "Join PDFs into one, keep only the pages you need, or split a PDF into one file per page.",
+  "group": "Everyday",
+  "tags": ["pdf", "documents"],
+  "keywords": ["merge", "combine", "join", "split", "separate", "extract", "pages", "delete", "remove", "reorder", "rearrange", "order", "select", "together", "one", "single", "document", "scan", "pdf", "pdfs"]
+}
+</script>
+<style>
+  .split { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 28px; align-items: start;
+           margin-top: 28px; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .field { margin-bottom: 20px; }
+
+  .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+          min-height: 108px; padding: 14px; text-align: center; cursor: pointer; margin: 0;
+          border: 1.5px dashed var(--line); border-radius: 10px; background: var(--panel);
+          font-weight: 400; overflow-wrap: anywhere; }
+  .drop strong { font-weight: 600; }
+  .drop:hover, .drop.over { border-color: var(--acc); }
+  .drop:hover strong, .drop.over strong { color: var(--acc); }
+  .drop:focus-within { outline: 2px solid var(--acc); outline-offset: 3px; }
+
+  #how { margin: 0 0 10px; }
+  .files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .files:empty { display: none; }
+  .files li { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  .files .top { display: flex; gap: 10px; align-items: baseline; margin-bottom: 8px; }
+  .files .name { font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .files .count { margin: 0; white-space: nowrap; }
+  .files .row { display: flex; gap: 6px; }
+  .files input { flex: 1; min-width: 0; }
+  .files button { padding-left: 10px; padding-right: 10px; }
+  .files .err { margin: 6px 0 0; color: var(--bad); }
+  .files .err:empty { display: none; }
+  .files .mono { font-size: 13px; }
+
+  .out { display: flex; flex-direction: column; gap: 12px; }
+  .verdict { font-size: clamp(24px, 4.5vw, 30px); font-weight: 650; letter-spacing: -0.02em;
+             line-height: 1.15; margin: 0; }
+  .verdict:empty { display: none; }
+  .warn .verdict { color: var(--warn); }
+  .bad .verdict { color: var(--bad); }
+  #detail { margin: 0; }
+
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 14px; }
+  summary:hover { color: var(--acc); }
+  .facts { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px;
+           font-size: 14px; font-family: var(--mono); }
+  .facts dt { color: var(--dim); }
+  .facts dd { margin: 0; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="crumb"><a href="../"><strong>tools</strong><span class="dom">.jof.dev</span></a> <span class="sep">/</span> Merge and split PDFs</div>
+  <div class="spacer"></div>
+</header>
+
+<main>
+  <h1 style="view-transition-name:tool-pdf">Merge and split PDFs</h1>
+  <p class="lede">Choose one or more PDFs, then say which pages you want, in which order.</p>
+
+  <div class="split">
+    <form id="form" autocomplete="off">
+      <div class="field">
+        <label class="drop" id="drop" for="file"
+          data-tip="Choose several at once, or add more later. They are joined in the order of the list below.">
+          <strong>Choose PDFs</strong>
+          <span class="note" id="drop-hint">or drop them here</span>
+          <input type="file" id="file" class="sr" accept="application/pdf,.pdf" multiple data-primary>
+        </label>
+      </div>
+
+      <fieldset class="field">
+        <legend class="label" id="mode-label">What should come out?</legend>
+        <div class="seg" role="group" aria-labelledby="mode-label" data-tip-anchor>
+          <button type="button" data-mode="one" aria-pressed="true"
+            data-tip="All the pages you chose, joined into a single PDF.">One PDF</button>
+          <button type="button" data-mode="each" aria-pressed="false"
+            data-tip="Every page you chose as a PDF of its own, all together in one ZIP file.">A PDF per page</button>
+        </div>
+      </fieldset>
+
+      <p class="note" id="how" hidden>Leave the pages empty for all of them, or type them like
+        <span class="mono">1-3, 7</span>. Start with <span class="mono">not</span> to leave pages out.</p>
+      <ol class="files" id="files" aria-label="Your PDFs, in order"></ol>
+    </form>
+
+    <section class="out" id="out" aria-labelledby="result-h">
+      <h2 id="result-h" class="sr">The result</h2>
+      <p class="verdict" id="verdict" aria-live="polite"></p>
+      <p class="note" id="detail">Your new PDF will appear here.</p>
+
+      <div class="actions">
+        <button type="button" id="download" disabled
+          data-tip="Makes the new file and saves it to your downloads. The PDFs you chose are not changed.">Download PDF</button>
+      </div>
+      <p class="err" id="error" role="alert"></p>
+
+      <details>
+        <summary>Technical details</summary>
+        <dl class="facts">
+          <dt>files</dt><dd id="f-files">—</dd>
+          <dt>pages</dt><dd id="f-pages">—</dd>
+          <dt>version</dt><dd id="f-version">—</dd>
+          <dt>made</dt><dd id="f-made">—</dd>
+        </dl>
+        <p class="note">Pages are copied exactly as they are, not redrawn, so text stays sharp and
+          searchable and pictures lose nothing. Bookmarks, fill-in forms and the document's properties,
+          such as its author and title, are left behind. A PDF that is locked against changes cannot be
+          taken apart: print it to a new PDF and use that copy.</p>
+      </details>
+    </section>
+  </div>
+</main>
+
+<div class="savebar">
+  <button type="button" id="save"
+    data-tip="Downloads this page as one file that keeps working with no internet, even if this website disappears.">Save this tool</button>
+  <p class="hint">Keep your own copy of this page — or press <kbd id="savekey">⌘ S</kbd>.</p>
+</div>
+
+<footer class="foot">
+  <p class="promise">Everything happens on your device. Nothing you type is sent or saved anywhere.</p>
+  <div class="links">
+    <span>Free and <a href="https://github.com/funkekaiser/tools">open source</a>.</span>
+    <span class="spacer"></span>
+    <button type="button" id="theme" hidden>Theme</button>
+  </div>
+</footer>
+
+<script>
+/* Everything that decides what is in the file people download: reading a PDF,
+   choosing its pages, and writing a new one. scripts/test-pdf.mjs checks it.
+
+   A PDF is a pile of numbered objects that point at each other. A new PDF is
+   written from scratch: a fresh list of pages, then every object those pages
+   point at, renumbered, copied as written. Nothing on a page is redrawn. */
+var PDF = (function () {
+  "use strict";
+
+  function fail(msg) { var e = new Error(msg); e.plain = true; throw e; }
+
+  function latin(b) {
+    var s = "";
+    for (var i = 0; i < b.length; i += 32768) s += String.fromCharCode.apply(null, b.subarray(i, Math.min(i + 32768, b.length)));
+    return s;
+  }
+  function latinBytes(s) {
+    var b = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+    return b;
+  }
+  function join(parts) {
+    var n = 0, at = 0;
+    parts.forEach(function (p) { n += p.length; });
+    var out = new Uint8Array(n);
+    parts.forEach(function (p) { out.set(p, at); at += p.length; });
+    return out;
+  }
+  // Lenient: PDFs often have a stray byte or two after their packed data.
+  async function inflate(b) {
+    var reader = new Blob([b]).stream().pipeThrough(new DecompressionStream("deflate")).getReader(), parts = [];
+    try {
+      for (;;) { var x = await reader.read(); if (x.done) break; parts.push(x.value); }
+    } catch (e) {
+      if (!parts.length) throw e;
+    }
+    return join(parts);
+  }
+
+  /* ---- reading values ---- */
+
+  function ws(c) { return c === 32 || c === 10 || c === 13 || c === 9 || c === 12 || c === 0; }
+  function delim(c) { return ws(c) || "()<>[]{}/%".indexOf(String.fromCharCode(c)) > -1; }
+  function skip(s, p) {
+    for (;;) {
+      var c = s.charCodeAt(p);
+      if (ws(c)) p++;
+      else if (c === 37) { while (p < s.length && s[p] !== "\n" && s[p] !== "\r") p++; }
+      else return p;
+    }
+  }
+
+  // One value starting at p: { type, start, end } plus what it holds. Dictionaries
+  // keep their keys in order, as written, so they can be written out again.
+  function value(s, p, depth) {
+    p = skip(s, p);
+    if ((depth = depth || 0) > 60 || p >= s.length) return null;
+    var c = s[p], start = p, v;
+    if (c === "<" && s[p + 1] === "<") {
+      var entries = {}, keys = [];
+      p += 2;
+      for (;;) {
+        p = skip(s, p);
+        if (s[p] === ">" && s[p + 1] === ">") return { type: "dict", start: start, end: p + 2, entries: entries, keys: keys };
+        if (s[p] !== "/") return null;
+        var key = value(s, p, depth + 1);
+        if (!key) return null;
+        v = value(s, key.end, depth + 1);
+        if (!v) return null;
+        entries[key.name] = v;
+        keys.push({ raw: s.slice(key.start, key.end), name: key.name, v: v });
+        p = v.end;
+      }
+    }
+    if (c === "<") { var e = s.indexOf(">", p); return e < 0 ? null : { type: "hex", start: start, end: e + 1 }; }
+    if (c === "(") {
+      for (var d = 0, i = p; i < s.length; i++) {
+        var ch = s[i];
+        if (ch === "\\") i++;
+        else if (ch === "(") d++;
+        else if (ch === ")" && --d === 0) return { type: "string", start: start, end: i + 1 };
+      }
+      return null;
+    }
+    if (c === "[") {
+      var items = [];
+      p++;
+      for (;;) {
+        p = skip(s, p);
+        if (s[p] === "]") return { type: "array", start: start, end: p + 1, items: items };
+        v = value(s, p, depth + 1);
+        if (!v) return null;
+        items.push(v);
+        p = v.end;
+      }
+    }
+    if (c === "/") {
+      for (p++; p < s.length && !delim(s.charCodeAt(p)); p++);
+      return { type: "name", start: start, end: p,
+               name: s.slice(start + 1, p).replace(/#([0-9a-f]{2})/gi, function (a, h) { return String.fromCharCode(parseInt(h, 16)); }) };
+    }
+    var m = /^[+-]?(?:\d+\.?\d*|\.\d+)/.exec(s.slice(p, p + 32));
+    if (m) {
+      var num = { type: "number", start: start, end: p + m[0].length, n: +m[0] };
+      var ref = /^\s+(\d+)\s+R(?![^\s()<>\[\]{}\/%])/.exec(s.slice(num.end, num.end + 24));
+      if (ref && /^\d+$/.test(m[0])) return { type: "ref", start: start, end: num.end + ref[0].length, num: num.n };
+      return num;
+    }
+    var w = /^[a-z]+/.exec(s.slice(p, p + 8));
+    return w ? { type: "word", start: start, end: p + w[0].length } : null;
+  }
+
+  function filters(d) {
+    var f = d.entries.Filter;
+    return !f ? [] : f.type === "name" ? [f.name] : f.type === "array" ? f.items.map(function (x) { return x.name; }) : ["?"];
+  }
+
+  /* ---- reading a PDF ---- */
+
+  var INHERIT = ["Resources", "MediaBox", "CropBox", "Rotate"];
+
+  async function open(b) {
+    var s = latin(b);
+    var head = /%PDF-(\d+\.\d+)/.exec(s.slice(0, 1024));
+    if (!head) fail("This is not a PDF.");
+    if (/\/Encrypt\s*(?:\d+\s+\d+\s+R|<<)/.test(s)) fail("This PDF is locked against changes. Print it to a new PDF and use that copy.");
+
+    // Every object, in the order it was written. When a PDF was changed after it
+    // was saved, the newer copy of an object comes later and wins.
+    var main = { s: s, b: b }, all = [], re = /(\d+)\s+(\d+)\s+obj\b/g, m;
+    while ((m = re.exec(s))) {
+      if (m.index && !ws(s.charCodeAt(m.index - 1))) continue;
+      var v = value(s, m.index + m[0].length);
+      if (!v) continue;
+      var o = { num: +m[1], v: v, src: main, stream: null, pos: m.index, sub: -1 };
+      if (v.type === "dict") {
+        var q = skip(s, v.end);
+        if (s.substr(q, 6) === "stream") {
+          q += 6;
+          if (s[q] === "\r") q++;
+          if (s[q] === "\n") q++;
+          o.stream = { start: q };
+          var L = v.entries.Length, e = s.indexOf("endstream", q);
+          re.lastIndex = L && L.type === "number" && /^\s*endstream/.test(s.substr(q + L.n, 32)) ? q + L.n
+            : e < 0 ? s.length : e;
+        }
+      }
+      all.push(o);
+    }
+
+    // Objects packed into object streams count as written where their stream is.
+    var plain = all.slice();
+    for (var i = 0; i < plain.length; i++) {
+      var os = plain[i], ot = os.v.entries && os.v.entries.Type;
+      if (!os.stream || !ot || ot.name !== "ObjStm") continue;
+      var f = filters(os.v), dp = os.v.entries.DecodeParms;
+      if (f.length > 1 || (f.length && f[0] !== "FlateDecode") || dp) fail("This PDF is packed in a way this tool cannot read yet.");
+      var raw = streamBytes(null, os, plain), dec;
+      try { dec = f.length ? await inflate(raw) : raw; }
+      catch (err) { fail("Part of this PDF is damaged, so it cannot be taken apart."); }
+      var ds = latin(dec), first = os.v.entries.First ? os.v.entries.First.n : 0;
+      var nums = ds.slice(0, first).trim().split(/\s+/).map(Number), pack = { s: ds, b: dec };
+      for (var k = 0; k + 1 < nums.length; k += 2) {
+        var pv = value(ds, first + nums[k + 1]);
+        if (pv) all.push({ num: nums[k], v: pv, src: pack, stream: null, pos: os.pos, sub: k });
+      }
+    }
+    all.sort(function (x, y) { return x.pos - y.pos || x.sub - y.sub; });
+    var objs = {};
+    all.forEach(function (x) { objs[x.num] = x; });
+    var doc = { objs: objs, version: head[1], pages: [], isPage: {}, tree: {} };
+
+    // The catalog named by the last trailer, or failing that the last catalog.
+    var root = null, at = -1, tm, tre = /trailer\b/g;
+    while ((tm = tre.exec(s))) {
+      var t = value(s, tm.index + 7);
+      if (t && t.type === "dict" && t.entries.Root && t.entries.Root.type === "ref") { root = t.entries.Root.num; at = tm.index; }
+    }
+    all.forEach(function (x) {
+      var e = x.v.entries;
+      if (x.src === main && x.pos > at && e && e.Type && e.Type.name === "XRef" && e.Root && e.Root.type === "ref") { root = e.Root.num; at = x.pos; }
+    });
+    if (root == null || !objs[root] || objs[root].v.type !== "dict") {
+      root = null;
+      all.forEach(function (x) { var e = x.v.entries; if (e && e.Type && e.Type.name === "Catalog") root = x.num; });
+    }
+    if (root == null) fail("No pages could be found in this PDF. It may be damaged.");
+    doc.tree[root] = true;
+    var cat = objs[root].v.entries;
+    if (cat.Version && cat.Version.type === "name" && +cat.Version.name > +doc.version) doc.version = cat.Version.name;
+
+    // The pages, in reading order. Some settings are written once on a group of
+    // pages instead of on each page; each page takes a note of them here.
+    var seen = {};
+    function walk(r, inherit, depth) {
+      if (!r || r.type !== "ref" || depth > 64 || seen[r.num]) return;
+      var o = objs[r.num];
+      if (!o || o.v.type !== "dict") return;
+      seen[r.num] = true;
+      var e = o.v.entries, type = e.Type && e.Type.name;
+      if (type === "Pages" || (type !== "Page" && e.Kids)) {
+        doc.tree[r.num] = true;
+        var next = Object.assign({}, inherit);
+        INHERIT.forEach(function (key) { if (e[key]) next[key] = { v: e[key], src: o.src }; });
+        var kids = e.Kids && e.Kids.type === "ref" ? objs[e.Kids.num] && objs[e.Kids.num].v : e.Kids;
+        if (kids && kids.type === "array") kids.items.forEach(function (kid) { walk(kid, next, depth + 1); });
+      } else {
+        doc.isPage[r.num] = doc.pages.length;
+        doc.pages.push({ num: r.num, o: o, inherit: inherit });
+      }
+    }
+    walk(cat.Pages, {}, 0);
+    if (!doc.pages.length) fail("No pages could be found in this PDF. It may be damaged.");
+    return doc;
+  }
+
+  // A stream's bytes. The length it states is trusted only if "endstream" is
+  // where it says; otherwise everything up to "endstream", less the line break.
+  function streamBytes(doc, o, list) {
+    var s = o.src.s, start = o.stream.start, n = -1, L = o.v.entries.Length;
+    if (L && L.type === "number") n = L.n;
+    else if (L && L.type === "ref") {
+      var t = doc ? doc.objs[L.num] : null;
+      if (!doc) for (var i = list.length - 1; i >= 0; i--) if (list[i].num === L.num) { t = list[i]; break; }
+      if (t && t.v.type === "number") n = t.v.n;
+    }
+    if (n >= 0 && /^\s*endstream/.test(s.substr(start + n, 32))) return o.src.b.subarray(start, start + n);
+    var e = s.indexOf("endstream", start);
+    if (e < 0) e = s.length;
+    if (s[e - 1] === "\n") e--;
+    if (s[e - 1] === "\r") e--;
+    return o.src.b.subarray(start, Math.max(start, e));
+  }
+
+  /* ---- which pages ---- */
+
+  // "1-3, 7", "10-end", "5-1" backwards, "not 2, 4" for all but those. Page
+  // numbers count from 1 here and from 0 in what comes back.
+  function pick(text, count) {
+    var t = String(text).toLowerCase().replace(/[‒-―−]/g, "-")
+      .replace(/\bpages?\b|\bp\.?(?=\s*\d)/g, " ").replace(/\b(?:and|to|till|until|through)\b/g, function (w) { return w === "and" ? "," : "-"; })
+      .replace(/\b(?:end|last)\b/g, String(count)).replace(/\s*-\s*/g, "-").trim();
+    var not = /^(?:all\s+(?:but|except)|not|except|without|skip)\b[\s,]*/.exec(t);
+    if (not) t = t.slice(not[0].length).trim();
+    if (!t || t === "all") {
+      if (not) return { error: "Which pages should be left out?" };
+      return { pages: Array.from({ length: count }, function (_, i) { return i; }) };
+    }
+    var out = [], parts = t.split(/[\s,;]+/).filter(Boolean);
+    for (var i = 0; i < parts.length; i++) {
+      var m = /^(\d*)-(\d*)$/.exec(parts[i]) || /^(\d+)$/.exec(parts[i]);
+      if (!m || (m[1] === "" && m[2] === "")) return { error: "Type page numbers like 1-3, 7." };
+      var a = m[1] === "" ? 1 : +m[1], b = m[2] === undefined ? a : m[2] === "" ? count : +m[2];
+      var bad = [a, b].filter(function (x) { return x < 1 || x > count; })[0];
+      if (bad !== undefined) {
+        return { error: bad < 1 ? "Pages start at 1."
+          : "There is no page " + bad + ": this PDF has " + count + (count === 1 ? " page." : " pages.") };
+      }
+      for (var p = a; ; p += a <= b ? 1 : -1) { out.push(p - 1); if (p === b) break; }
+    }
+    if (not) {
+      var drop = {};
+      out.forEach(function (p) { drop[p] = true; });
+      out = [];
+      for (var j = 0; j < count; j++) if (!drop[j]) out.push(j);
+      if (!out.length) return { error: "That leaves no pages." };
+    }
+    return { pages: out };
+  }
+
+  /* ---- writing a PDF ---- */
+
+  // list: [{ doc, page }], page counting from 0, in the order they should appear.
+  // The same page may come twice; it gets two page entries sharing what is on it.
+  function build(list) {
+    var parts = [], at = 0, offsets = [], next = 3, queue = [], maps = new Map(), first = new Map();
+    function put(str) { var b = latinBytes(str); parts.push(b); at += b.length; }
+    function mapOf(m, doc) { if (!m.has(doc)) m.set(doc, {}); return m.get(doc); }
+
+    var pageNums = list.map(function (x) {
+      var n = next++, f = mapOf(first, x.doc), old = x.doc.pages[x.page].num;
+      if (!(old in f)) f[old] = n;
+      return n;
+    });
+
+    // A pointer to another page goes to that page's new copy, or nowhere if it
+    // was left out. Pointers to the old page list or catalog go nowhere, or they
+    // would drag every page of the old file along.
+    function ref(doc, num) {
+      if (num in doc.isPage) { var f = mapOf(first, doc)[num]; return f ? f + " 0 R" : "null"; }
+      if (doc.tree[num] || !doc.objs[num]) return "null";
+      var m = mapOf(maps, doc);
+      if (!(num in m)) { m[num] = next++; queue.push([doc, num, m[num]]); }
+      return m[num] + " 0 R";
+    }
+    function emit(doc, src, v) {
+      if (v.type === "ref") return ref(doc, v.num);
+      if (v.type === "array") return "[" + v.items.map(function (x) { return emit(doc, src, x); }).join(" ") + "]";
+      if (v.type === "dict") return dict(doc, src, v, null, "");
+      return src.s.slice(v.start, v.end);
+    }
+    function dict(doc, src, v, leave, extra) {
+      var out = "<<";
+      v.keys.forEach(function (k) {
+        if (v.entries[k.name] !== k.v || (leave && leave.indexOf(k.name) > -1)) return;
+        out += k.raw + " " + emit(doc, src, k.v) + " ";
+      });
+      return out + extra + ">>";
+    }
+    function object(num, text, data) {
+      offsets[num] = at;
+      if (!data) { put(num + " 0 obj\n" + text + "\nendobj\n"); return; }
+      put(num + " 0 obj\n" + text + "\nstream\n");
+      parts.push(data);
+      at += data.length;
+      put("\nendstream\nendobj\n");
+    }
+
+    var version = list.reduce(function (v, x) { return +x.doc.version > +v ? x.doc.version : v; }, "1.4");
+    put("%PDF-" + version + "\n%\xe2\xe3\xcf\xd3\n");
+    object(1, "<</Type /Catalog /Pages 2 0 R>>");
+    object(2, "<</Type /Pages /Kids [" + pageNums.map(function (n) { return n + " 0 R"; }).join(" ") +
+      "] /Count " + list.length + ">>");
+
+    list.forEach(function (x, i) {
+      var p = x.doc.pages[x.page], e = p.o.v.entries, extra = "";
+      INHERIT.forEach(function (key) {
+        if (!e[key] && p.inherit[key]) extra += "/" + key + " " + emit(x.doc, p.inherit[key].src, p.inherit[key].v) + " ";
+      });
+      if (!e.MediaBox && !p.inherit.MediaBox) extra += "/MediaBox [0 0 612 792] ";
+      object(pageNums[i], dict(x.doc, p.o.src, p.o.v, ["Parent"], extra + "/Parent 2 0 R"));
+    });
+
+    while (queue.length) {
+      var job = queue.shift(), o = job[0].objs[job[1]];
+      if (o.stream) {
+        var data = streamBytes(job[0], o);
+        object(job[2], dict(job[0], o.src, o.v, ["Length"], "/Length " + data.length), data);
+      } else {
+        object(job[2], emit(job[0], o.src, o.v));
+      }
+    }
+
+    var xref = at, table = "xref\n0 " + next + "\n0000000000 65535 f \n";
+    for (var n = 1; n < next; n++) table += String(offsets[n]).padStart(10, "0") + " 00000 n \n";
+    put(table + "trailer\n<</Size " + next + " /Root 1 0 R>>\nstartxref\n" + xref + "\n%%EOF\n");
+    return join(parts);
+  }
+
+  /* ---- a ZIP of several files, stored as they are ---- */
+
+  var CRC = (function () {
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+      t[n] = c;
+    }
+    return t;
+  })();
+  function crc32(b) {
+    var c = -1;
+    for (var i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8);
+    return (c ^ -1) >>> 0;
+  }
+
+  // PDFs are packed already, so packing them again gains next to nothing.
+  // Every entry is dated 1 January 1980, the earliest a ZIP can say.
+  function zip(files) {
+    var parts = [], central = [], at = 0, size = 0;
+    files.forEach(function (f) {
+      var name = new TextEncoder().encode(f.name), crc = crc32(f.data);
+      var h = new Uint8Array(30), v = new DataView(h.buffer);
+      v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x0800, true);
+      v.setUint16(12, 0x21, true); v.setUint32(14, crc, true);
+      v.setUint32(18, f.data.length, true); v.setUint32(22, f.data.length, true); v.setUint16(26, name.length, true);
+      var c = new Uint8Array(46), w = new DataView(c.buffer);
+      w.setUint32(0, 0x02014b50, true); w.setUint16(4, 20, true); w.setUint16(6, 20, true);
+      w.setUint16(8, 0x0800, true); w.setUint16(14, 0x21, true);
+      w.setUint32(16, crc, true); w.setUint32(20, f.data.length, true); w.setUint32(24, f.data.length, true);
+      w.setUint16(28, name.length, true); w.setUint32(42, at, true);
+      parts.push(h, name, f.data);
+      central.push(c, name);
+      at += 30 + name.length + f.data.length;
+      size += 46 + name.length;
+    });
+    if (at > 0xFFFFFFFF || files.length > 0xFFFF) fail("That is too much for one ZIP file. Choose fewer pages.");
+    var end = new Uint8Array(22), d = new DataView(end.buffer);
+    d.setUint32(0, 0x06054b50, true); d.setUint16(8, files.length, true); d.setUint16(10, files.length, true);
+    d.setUint32(12, size, true); d.setUint32(16, at, true);
+    return join(parts.concat(central, [end]));
+  }
+
+  return { open: open, pick: pick, build: build, zip: zip, crc32: crc32 };
+})();
+
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var fileEl = $("file"), drop = $("drop"), listEl = $("files"), out = $("out"), dl = $("download");
+  var items = [], mode = "one", made = null, ids = 0;
+
+  function sizeText(n) {
+    if (n < 1024) return n + " bytes";
+    var u = ["KB", "MB", "GB"], i = -1;
+    do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
+    return n.toFixed(n < 10 ? 1 : 0) + " " + u[i];
+  }
+  function stem(name) { var d = name.lastIndexOf("."); return d > 0 ? name.slice(0, d) : name; }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+
+  // The list is drawn again only when files come, go or move, so typing in a
+  // pages box never loses its place.
+  function draw() {
+    var focus = document.activeElement && document.activeElement.dataset.focus;
+    listEl.textContent = "";
+    items.forEach(function (it, i) {
+      var li = document.createElement("li");
+      var top = document.createElement("div");
+      top.className = "top";
+      var name = document.createElement("span");
+      name.className = "name";
+      name.textContent = it.file.name;
+      var count = document.createElement("p");
+      count.className = "note count";
+      count.textContent = it.doc ? plural(it.doc.pages.length, "page", "pages") : it.error ? "" : "Reading…";
+      top.append(name, count);
+      li.append(top);
+
+      if (it.doc) {
+        var row = document.createElement("div");
+        row.className = "row";
+        var label = document.createElement("label");
+        label.className = "sr";
+        label.htmlFor = "pages-" + it.id;
+        label.textContent = "Pages from " + it.file.name;
+        var input = document.createElement("input");
+        input.type = "text";
+        input.id = "pages-" + it.id;
+        input.className = "mono";
+        input.placeholder = "All pages";
+        input.spellcheck = false;
+        input.value = it.text;
+        input.dataset.focus = "pages-" + it.id;
+        input.addEventListener("input", function () { it.text = input.value; update(); });
+        row.append(label, input);
+        [["↑", "Move " + it.file.name + " up", -1], ["↓", "Move " + it.file.name + " down", 1]].forEach(function (b) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = b[0];
+          btn.setAttribute("aria-label", b[1]);
+          btn.dataset.focus = b[2] + "-" + it.id;
+          btn.disabled = (b[2] < 0 && i === 0) || (b[2] > 0 && i === items.length - 1);
+          btn.addEventListener("click", function () { move(i, b[2]); });
+          row.append(btn);
+        });
+        li.append(row);
+      }
+      var rm = document.createElement("button");
+      rm.type = "button";
+      rm.textContent = "×";
+      rm.setAttribute("aria-label", "Remove " + it.file.name);
+      rm.dataset.focus = "x-" + it.id;
+      rm.addEventListener("click", function () { remove(i); });
+      (li.querySelector(".row") || top).append(rm);
+
+      var err = document.createElement("p");
+      err.className = "note err";
+      err.id = "err-" + it.id;
+      err.textContent = it.error || "";
+      li.append(err);
+      listEl.append(li);
+    });
+    $("how").hidden = !items.some(function (it) { return it.doc; });
+    if (focus) { var back = listEl.querySelector('[data-focus="' + focus + '"]'); if (back && !back.disabled) back.focus(); }
+    update();
+  }
+
+  function move(i, by) {
+    var it = items.splice(i, 1)[0];
+    items.splice(i + by, 0, it);
+    draw();
+  }
+  function remove(i) {
+    items.splice(i, 1);
+    draw();
+    if (!items.length) fileEl.focus();
+  }
+
+  // What would come out, from what is chosen now.
+  function plan() {
+    var list = [], wrong = 0;
+    items.forEach(function (it) {
+      if (!it.doc) return;
+      var r = PDF.pick(it.text, it.doc.pages.length), err = $("err-" + it.id);
+      it.problem = r.error || "";
+      if (err) err.textContent = it.problem;
+      if (r.error) { wrong++; return; }
+      r.pages.forEach(function (p) { list.push({ doc: it.doc, page: p, it: it }); });
+    });
+    return { list: list, wrong: wrong };
+  }
+
+  function update() {
+    made = null;
+    $("error").textContent = "";
+    $("f-made").textContent = "—";
+    var p = plan(), ready = items.filter(function (it) { return it.doc; }), n = p.list.length;
+    var each = mode === "each" && n > 1;
+    dl.textContent = each ? "Download ZIP" : "Download PDF";
+    dl.disabled = !n || p.wrong > 0 || items.some(function (it) { return !it.doc && !it.error; });
+    $("f-files").textContent = ready.length || "—";
+    $("f-pages").textContent = n || "—";
+    $("f-version").textContent = n ? p.list.reduce(function (v, x) { return +x.doc.version > +v ? x.doc.version : v; }, "1.4") : "—";
+
+    if (p.wrong) {
+      out.className = "out warn";
+      $("verdict").textContent = "Check the pages";
+      $("detail").textContent = "One of the page lists has a problem. It is shown under the file.";
+    } else if (!n) {
+      out.className = "out";
+      $("verdict").textContent = "";
+      $("detail").textContent = items.length ? "None of these could be opened. Try another PDF." : "Your new PDF will appear here.";
+    } else {
+      out.className = "out";
+      $("verdict").textContent = plural(n, "page", "pages");
+      var from = ready.length > 1 ? ", from " + ready.length + " PDFs" : "";
+      $("detail").textContent = each ? "As " + n + " separate PDFs" + from + ", together in one ZIP file."
+        : "In one PDF" + from + ".";
+    }
+  }
+
+  async function add(files) {
+    var fresh = Array.prototype.map.call(files, function (f) { return { id: ++ids, file: f, doc: null, error: "", text: "" }; });
+    if (!fresh.length) return;
+    items = items.concat(fresh);
+    draw();
+    for (var i = 0; i < fresh.length; i++) {
+      var it = fresh[i];
+      try { it.doc = await PDF.open(new Uint8Array(await it.file.arrayBuffer())); }
+      catch (e) {
+        if (!e.plain) console.error(e);
+        it.error = e.plain ? e.message : "This PDF could not be read. It may be damaged.";
+      }
+      draw();
+    }
+  }
+
+  function outName() {
+    var ready = items.filter(function (it) { return it.doc; });
+    if (ready.length !== 1) return mode === "each" ? "Pages" : "Merged";
+    var it = ready[0], t = it.text.trim();
+    return stem(it.file.name) + (t && t.toLowerCase() !== "all" ? " (pages " + t.replace(/[\/\\:*?"<>|]/g, " ") + ")" : "");
+  }
+
+  async function make() {
+    var p = plan(), name = outName();
+    if (mode === "each" && p.list.length > 1) {
+      var width = String(p.list.length).length, used = {};
+      var files = p.list.map(function (x, i) {
+        var base = String(i + 1).padStart(width, "0") + " " + stem(x.it.file.name) + ", page " + (x.page + 1);
+        used[base] = (used[base] || 0) + 1;
+        return { name: base + (used[base] > 1 ? " (" + used[base] + ")" : "") + ".pdf", data: PDF.build([x]) };
+      });
+      return { data: PDF.zip(files), type: "application/zip", name: name + ".zip" };
+    }
+    return { data: PDF.build(p.list), type: "application/pdf", name: name + ".pdf" };
+  }
+
+  dl.addEventListener("click", async function () {
+    var was = dl.textContent;
+    dl.disabled = true;
+    dl.textContent = "Making…";
+    await new Promise(function (r) { setTimeout(r, 20); });
+    try {
+      made = await make();
+    } catch (e) {
+      if (!e.plain) console.error(e);
+      $("error").textContent = e.plain ? e.message : "Something in these PDFs could not be copied. Try them one at a time to find which.";
+      dl.textContent = was;
+      dl.disabled = false;
+      return;
+    }
+    $("f-made").textContent = sizeText(made.data.length);
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([made.data], { type: made.type }));
+    a.download = made.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 60000);
+    dl.textContent = "Saved";
+    dl.classList.add("done");
+    dl.disabled = false;
+    setTimeout(function () { dl.textContent = was; dl.classList.remove("done"); }, 1400);
+  });
+
+  var seg = document.querySelector("[data-tip-anchor]");
+  seg.addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-mode]");
+    if (!btn) return;
+    Array.prototype.forEach.call(seg.querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", String(b === btn));
+    });
+    mode = btn.dataset.mode;
+    update();
+  });
+
+  fileEl.addEventListener("change", function () { add(fileEl.files); fileEl.value = ""; });
+  document.addEventListener("dragover", function (e) { e.preventDefault(); drop.classList.add("over"); });
+  document.addEventListener("dragleave", function (e) { if (!e.relatedTarget) drop.classList.remove("over"); });
+  document.addEventListener("drop", function (e) {
+    e.preventDefault();
+    drop.classList.remove("over");
+    if (e.dataTransfer && e.dataTransfer.files.length) add(e.dataTransfer.files);
+  });
+  $("form").addEventListener("submit", function (e) { e.preventDefault(); });
+})();
+</script>
+
+</body>
+</html>
