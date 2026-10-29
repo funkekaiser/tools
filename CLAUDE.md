@@ -147,6 +147,12 @@ These choices are settled and recorded so they are not quietly undone later.
   and dates removed, because deleting them changes what the document says; the page says they
   are there instead. Plain text has no notes; invisible characters in text are a separate idea
   (issue #16).
+- **PDF pages are chosen by number, not by picture.** Showing a page means drawing it, and drawing
+  a PDF takes a renderer like pdf.js: a dependency bigger than every tool here together, for a
+  preview. Page numbers typed as `1-3, 7`, `3-1` backwards and `not 2` cover joining, picking,
+  reordering and deleting. Pages are copied object for object, never redrawn, so nothing loses
+  quality. Locked PDFs are refused, because their contents are scrambled with their object numbers
+  and renumbering breaks them.
 - **A tool is named with the words its people already use.** Plain language is about the
   person the tool is for, not about avoiding every common term. "Generator" and "metadata" are
   what people type when they look for these tools, and they understand them, so they are fair
@@ -180,6 +186,7 @@ scripts/test-passphrase.mjs  checks the word list, generator and count inside to
 scripts/test-search.mjs    checks the front-page search finds each tool from real queries
 scripts/test-metadata.mjs  checks every kind of hidden note is found and cut out by tools/metadata.html
 scripts/test-checksum.mjs  checks the four hashes and the paste reader inside tools/checksum.html
+scripts/test-pdf.mjs       checks reading, page choosing, writing and zipping inside tools/pdf.html
 .github/workflows/build-tool.yml   labelling an issue `build` has Claude build it as a PR
 dist/                      generated, gitignored, what Cloudflare serves
 drafts/                    unfinished experiments, not published
@@ -207,6 +214,7 @@ node scripts/test-passphrase.mjs       # verify the passphrase generator and its
 node scripts/test-search.mjs           # verify the front-page search finds tools from everyday queries
 node scripts/test-metadata.mjs         # verify no planted name, place or date survives cleaning
 node scripts/test-checksum.mjs         # verify MD5, SHA-1, SHA-256 and SHA-512 against Node's own
+node scripts/test-pdf.mjs              # verify merged and split PDFs hold exactly the pages asked for
 python3 -m http.server 8000 -d dist    # serve the built site
 ```
 

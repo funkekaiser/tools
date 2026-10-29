@@ -79,6 +79,12 @@ const FINDS = [
   ['verify checksum', ['checksum']],
   ['check md5 hash', ['checksum']],
   ['is my download corrupted', ['checksum']],
+  ['merge pdf', ['pdf']],
+  ['combine pdfs', ['pdf']],
+  ['split pdf', ['pdf']],
+  ['delete pages from pdf', ['pdf']],
+  ['extract pages', ['pdf']],
+  ['put two pdfs together', ['pdf']],
   ['passw', ['password']],          // still typing
   ['QR', ['qr']],
   // sentences: the tool that fits most of the words wins
